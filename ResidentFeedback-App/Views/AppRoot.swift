@@ -22,6 +22,23 @@ struct AppRoot: View {
                     .transition(.opacity)
             }
         }
-        .animation(.spring(response: 0.45, dampingFraction: 0.9, blendDuration: 0.2), value: auth.accessToken != nil)
     }
+}
+
+#Preview("Logged Out") {
+    AppRoot()
+        .environmentObject(AuthStore())
+        .environmentObject(APIClient(auth: AuthStore()))
+        .environmentObject(AssessmentViewModel())
+        .environmentObject(AppearanceStore())
+}
+
+#Preview("Logged In") {
+    let auth = AuthStore()
+    auth.accessToken = "token"
+    return AppRoot()
+        .environmentObject(auth)
+        .environmentObject(APIClient(auth: auth))
+        .environmentObject(AssessmentViewModel())
+        .environmentObject(AppearanceStore())
 }

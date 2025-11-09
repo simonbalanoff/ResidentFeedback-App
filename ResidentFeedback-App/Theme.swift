@@ -8,25 +8,20 @@
 import SwiftUI
 
 enum Theme {
-    static let gradient = LinearGradient(colors: [
-        Color(hex: 0x0F172A),
-        Color(hex: 0x1E293B),
-        Color(hex: 0x0B1220)
-    ], startPoint: .topLeading, endPoint: .bottomTrailing)
-    
-    static let cardBackground = Color.white.opacity(0.08)
-    static let stroke = Color.white.opacity(0.15)
-    static let fill = Color.white.opacity(0.06)
-    static let textPrimary = Color.white
-    static let textSecondary = Color.white.opacity(0.7)
-    static let accent = Color(hex: 0x60A5FA)
+    static var bg: Color { Color(.systemBackground) }
+    static var card: Color { Color(.secondarySystemBackground) }
+    static var sep: Color { Color(.separator) }
+    static var text: Color { Color(.label) }
+    static var subtext: Color { Color(.secondaryLabel) }
+    static var accent: Color { Color.accentColor }
 }
 
-extension Color {
-    init(hex: UInt, alpha: Double = 1) {
-        let r = Double((hex >> 16) & 0xff) / 255
-        let g = Double((hex >> 8) & 0xff) / 255
-        let b = Double(hex & 0xff) / 255
-        self.init(.sRGB, red: r, green: g, blue: b, opacity: alpha)
+#Preview {
+    VStack(spacing: 12) {
+        Text("Primary").foregroundStyle(Theme.text)
+        Text("Secondary").foregroundStyle(Theme.subtext)
+        RoundedRectangle(cornerRadius: 12).fill(Theme.card).frame(height: 60)
     }
+    .padding()
+    .background(Theme.bg)
 }

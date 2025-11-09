@@ -11,11 +11,10 @@ struct ResidentsListView: View {
     @EnvironmentObject var api: APIClient
     @State private var residents: [Resident] = []
     @State private var loading = false
-    @State private var hasLoaded = false
-    @State private var isRefreshing = false
-    @State private var error: String?
+    @State private var loadError: String?
     @State private var search = ""
     @State private var selectedPGY: Int? = nil
+    let startNewAssessment: () -> Void
 
     var filtered: [Resident] {
         residents.filter { r in
@@ -23,6 +22,7 @@ struct ResidentsListView: View {
             let y = selectedPGY == nil || r.pgYear == selectedPGY
             return t && y
         }
+        .sorted { $0.name < $1.name }
     }
 
     var pgyYears: [Int] {
@@ -30,156 +30,135 @@ struct ResidentsListView: View {
     }
 
     var body: some View {
-        ZStack {
-            Theme.gradient.ignoresSafeArea()
-            ScrollView {
-                VStack(spacing: 14) {
-                    GlassCard {
-                        VStack(spacing: 10) {
+        Group {
+            if loading { ProgressView() }
+            else if let e = loadError { VStack(spacing: 12) { ErrorBanner(message: e); Button("Retry") { Task { await load() } } } }
+            else {
+                List {
+                    ForEach(filtered) { r in
+                        NavigationLink(value: r) {
                             HStack {
-                                Image(systemName: "magnifyingglass").foregroundStyle(Theme.textSecondary)
-                                TextField("", text: $search, prompt: Text("Search residents").foregroundColor(.white.opacity(0.5)))
-                                    .foregroundStyle(Theme.textPrimary)
-                                    .textInputAutocapitalization(.words)
-                            }
-                            .padding(.horizontal, 12)
-                            .frame(height: 44)
-                            .background(Theme.fill)
-                            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Theme.stroke, lineWidth: 1))
-                            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-
-                            if !pgyYears.isEmpty {
-                                ScrollView(.horizontal, showsIndicators: false) {
-                                    HStack(spacing: 8) {
-                                        Chip(title: "All", selected: selectedPGY == nil) { selectedPGY = nil }
-                                        ForEach(pgyYears, id: \.self) { y in
-                                            Chip(title: "PGY \(y)", selected: selectedPGY == y) { selectedPGY = y }
-                                        }
-                                    }
+                                Image(systemName: "person.fill")
+                                VStack(alignment: .leading) {
+                                    Text(r.name)
+                                    Text("PGY \(r.pgYear)").foregroundStyle(Theme.subtext).font(.subheadline)
                                 }
                             }
                         }
                     }
-
-                    if !hasLoaded && loading {
-                        ProgressView().tint(.white).padding(.top, 8)
-                    } else if let e = error {
-                        ErrorBanner(message: e)
-                    } else if filtered.isEmpty {
-                        GlassCard {
-                            VStack(spacing: 8) {
-                                Image(systemName: "person.crop.circle.badge.questionmark")
-                                    .font(.system(size: 32, weight: .semibold))
-                                    .foregroundStyle(Theme.textSecondary)
-                                Text("No residents").foregroundStyle(Theme.textPrimary).font(.headline)
-                                Text("Add residents or adjust filters").foregroundStyle(Theme.textSecondary).font(.subheadline)
+                }
+                .navigationDestination(for: Resident.self) { r in
+                    ResidentDetailView(resident: r)
+                }
+                .listStyle(.insetGrouped)
+                .searchable(text: $search, placement: .navigationBarDrawer(displayMode: .always))
+                .toolbar {
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        Menu {
+                            Button("All") { selectedPGY = nil }
+                            ForEach(pgyYears, id: \.self) { y in
+                                Button("PGY \(y)") { selectedPGY = y }
                             }
-                            .frame(maxWidth: .infinity)
+                        } label: {
+                            Label(selectedPGY == nil ? "PGY" : "PGY \(selectedPGY!)", systemImage: "line.3.horizontal.decrease.circle")
                         }
-                    } else {
-                        VStack(spacing: 10) {
-                            if isRefreshing {
-                                ForEach(filtered.indices, id: \.self) { _ in GlassRowSkeleton() }
-                            } else {
-                                ForEach(filtered) { r in ResidentRow(resident: r) }
-                            }
+                    }
+                    ToolbarItem(placement: .bottomBar) {
+                        Button {
+                            startNewAssessment()
+                        } label: {
+                            Label("New Assessment", systemImage: "plus.circle.fill")
                         }
                     }
                 }
-                .padding(.horizontal, 18)
-                .padding(.top, 18)
-                .padding(.bottom, 82)
-                .refreshable { await refresh() }
-                .task { await initialLoad() }
+                .navigationTitle("Residents")
             }
         }
-        .navigationTitle("")
-        .navigationBarHidden(true)
+        .task { await load() }
+        .refreshable { await load() }
     }
 
-    func initialLoad() async {
+    func load() async {
         loading = true
-        error = nil
-        do {
-            residents = try await api.residents()
-        } catch {
-            self.error = "Failed to load residents"
-        }
+        loadError = nil
+        do { residents = try await api.residents() }
+        catch { loadError = "Failed to load residents" }
         loading = false
-        hasLoaded = true
-    }
-
-    func refresh() async {
-        isRefreshing = true
-        error = nil
-        do {
-            residents = try await api.residents()
-        } catch {
-            self.error = "Failed to load residents"
-        }
-        isRefreshing = false
-        hasLoaded = true
     }
 }
 
-private struct ResidentRow: View {
+struct ResidentDetailView: View {
+    @EnvironmentObject var api: APIClient
+    @EnvironmentObject var aVM: AssessmentViewModel
     let resident: Resident
+    @State private var working = false
+    @State private var active = false
+    @State private var name = ""
+    @State private var pgy = 1
+    @State private var error: String?
+
     var body: some View {
-        GlassCard {
-            HStack {
-                ZStack {
-                    Circle().fill(Theme.accent.opacity(0.25)).frame(width: 46, height: 46)
-                    Image(systemName: "person.fill").foregroundStyle(.white).font(.system(size: 20))
+        Form {
+            Section("Resident") {
+                TextField("Name", text: $name)
+                Stepper(value: $pgy, in: 1...10) { Text("PGY \(pgy)") }
+                Toggle("Active", isOn: $active)
+                if let e = error { Text(e).foregroundStyle(.red) }
+            }
+            Section {
+                Button {
+                    aVM.draft.residentId = resident.id
+                    aVM.draft.surgeryType = ""
+                    aVM.draft.note = ""
+                    aVM.draft.feedback = ""
+                } label: {
+                    NavigationLink(destination: NewAssessmentWizard(preselectedResidentId: resident.id)) {
+                        EmptyView()
+                    }.opacity(0)
+                }.hidden()
+
+                Button {
+                    aVM.draft = AssessmentDraft(residentId: resident.id, surgeryType: "", complexity: .Moderate, trustLevel: .DirectSupervision, note: "", feedback: "")
+                    aVM.submitted = false
+                } label: {
+                    NavigationLink("Create Assessment", destination: NewAssessmentWizard(preselectedResidentId: resident.id))
                 }
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(resident.name).foregroundStyle(Theme.textPrimary).font(.headline)
-                    Text("PGY \(resident.pgYear)").foregroundStyle(Theme.textSecondary).font(.subheadline)
+                Button(role: .none) {
+                    Task { await save() }
+                } label: {
+                    if working { ProgressView() } else { Text("Save Changes") }
                 }
-                Spacer()
-                Image(systemName: "chevron.right").foregroundStyle(Theme.textSecondary)
             }
         }
+        .navigationTitle(resident.name)
+        .onAppear {
+            name = resident.name
+            pgy = resident.pgYear
+            active = resident.active
+        }
+    }
+
+    func save() async {
+        working = true
+        error = nil
+        do { try await api.updateResident(id: resident.id, name: name, pgYear: pgy, active: active) }
+        catch { }
+        working = false
     }
 }
 
-private struct Chip: View {
-    let title: String
-    let selected: Bool
-    let action: () -> Void
-    var body: some View {
-        Button(action: action) {
-            Text(title)
-                .font(.footnote.weight(.semibold))
-                .foregroundStyle(selected ? .white : Theme.textSecondary)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
-                .background(selected ? Theme.fill.opacity(0.7) : Theme.fill)
-                .overlay(RoundedRectangle(cornerRadius: 12).stroke(Theme.stroke, lineWidth: 1))
-                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-        }
+#Preview("ResidentsListView") {
+    NavigationStack {
+        ResidentsListView(startNewAssessment: {})
     }
+    .environmentObject(APIClient(auth: AuthStore()))
+    .environmentObject(AssessmentViewModel())
 }
 
-private struct GlassRowSkeleton: View {
-    @State private var phase: CGFloat = 0
-    var body: some View {
-        GlassCard {
-            HStack(spacing: 12) {
-                RoundedRectangle(cornerRadius: 23).fill(shimmer).frame(width: 46, height: 46)
-                VStack(alignment: .leading, spacing: 6) {
-                    RoundedRectangle(cornerRadius: 6).fill(shimmer).frame(width: 160, height: 14)
-                    RoundedRectangle(cornerRadius: 6).fill(shimmer).frame(width: 80, height: 12)
-                }
-                Spacer()
-            }
-        }
-        .onAppear { withAnimation(.linear(duration: 1.2).repeatForever(autoreverses: false)) { phase = 1 } }
+#Preview("ResidentDetailView") {
+    NavigationStack {
+        ResidentDetailView(resident: Resident(id: "1", name: "Jane Resident", pgYear: 3, active: true))
     }
-    var shimmer: LinearGradient {
-        LinearGradient(gradient: Gradient(stops: [
-            .init(color: .white.opacity(0.18), location: phase - 0.3),
-            .init(color: .white.opacity(0.32), location: phase),
-            .init(color: .white.opacity(0.18), location: phase + 0.3)
-        ]), startPoint: .leading, endPoint: .trailing)
-    }
+    .environmentObject(APIClient(auth: AuthStore()))
+    .environmentObject(AssessmentViewModel())
 }

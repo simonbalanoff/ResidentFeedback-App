@@ -14,48 +14,35 @@ struct ManageResidentsView: View {
     @State private var loading = false
     @State private var loadError: String?
     @State private var showCreate = false
+    @State private var workingIds: Set<String> = []
 
     var body: some View {
         NavigationStack {
-            ZStack {
-                Theme.gradient.ignoresSafeArea()
-                ScrollView {
-                    VStack(spacing: 12) {
-                        if loading {
-                            ProgressView().tint(.white).padding(.top, 8)
-                        } else if let e = loadError {
-                            ErrorBanner(message: e)
-                        } else if residents.isEmpty {
-                            GlassCard {
-                                VStack(spacing: 8) {
-                                    Image(systemName: "person.crop.circle.badge.plus")
-                                        .font(.system(size: 34, weight: .semibold))
-                                        .foregroundStyle(Theme.textSecondary)
-                                    Text("No residents yet").foregroundStyle(Theme.textPrimary).font(.headline)
-                                    Text("Tap New to add one").foregroundStyle(Theme.textSecondary).font(.subheadline)
+            Group {
+                if loading { ProgressView() }
+                else if let e = loadError { VStack(spacing: 12) { ErrorBanner(message: e); Button("Retry") { Task { await reload() } } } }
+                else {
+                    List {
+                        ForEach(residents) { r in
+                            HStack {
+                                VStack(alignment: .leading) {
+                                    Text(r.name)
+                                    Text("PGY \(r.pgYear)").foregroundStyle(.secondary).font(.subheadline)
                                 }
-                                .frame(maxWidth: .infinity)
-                            }
-                        } else {
-                            ForEach(residents) { r in
-                                GlassCard {
-                                    HStack {
-                                        VStack(alignment: .leading, spacing: 2) {
-                                            Text(r.name).foregroundStyle(Theme.textPrimary).font(.headline)
-                                            Text("PGY \(r.pgYear)").foregroundStyle(Theme.textSecondary).font(.subheadline)
-                                        }
-                                        Spacer()
-                                        Toggle("", isOn: .constant(r.active))
-                                            .labelsHidden()
-                                            .disabled(true)
-                                    }
-                                }
+                                Spacer()
+                                Toggle("", isOn: Binding(get: { r.active }, set: { val in
+                                    Task { await setActive(r.id, val) }
+                                }))
+                                .labelsHidden()
+                                .disabled(workingIds.contains(r.id))
                             }
                         }
+                        .onDelete { idx in
+                            let ids = idx.map { residents[$0].id }
+                            Task { await deleteMany(ids) }
+                        }
                     }
-                    .padding(.horizontal, 18)
-                    .padding(.top, 12)
-                    .padding(.bottom, 18)
+                    .listStyle(.insetGrouped)
                 }
             }
             .navigationTitle("Manage Residents")
@@ -76,12 +63,33 @@ struct ManageResidentsView: View {
     func reload() async {
         loading = true
         loadError = nil
-        do {
-            residents = try await api.residents()
-        } catch {
-            loadError = "Failed to load residents"
-        }
+        do { residents = try await api.residents() }
+        catch { loadError = "Failed to load residents" }
         loading = false
+    }
+
+    func setActive(_ id: String, _ value: Bool) async {
+        workingIds.insert(id)
+        defer { workingIds.remove(id) }
+        do {
+            try await api.updateResident(id: id, active: value)
+            if let i = residents.firstIndex(where: { $0.id == id }) {
+                var r = residents[i]
+                r = Resident(id: r.id, name: r.name, pgYear: r.pgYear, active: value)
+                residents[i] = r
+            }
+        } catch {}
+    }
+
+    func deleteMany(_ ids: [String]) async {
+        for id in ids {
+            do { try await api.deleteResident(id: id) } catch {}
+        }
+        await reload()
     }
 }
 
+#Preview {
+    ManageResidentsView()
+        .environmentObject(APIClient(auth: AuthStore()))
+}

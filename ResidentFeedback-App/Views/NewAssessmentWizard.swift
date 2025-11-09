@@ -14,40 +14,41 @@ struct NewAssessmentWizard: View {
     @State private var step = 0
     @State private var residents: [Resident] = []
     @State private var loadError: String?
-    var body: some View {
-        NavigationStack {
-            VStack {
-                TabView(selection: $step) {
-                    SelectResidentStep(selectedId: $aVM.draft.residentId, residents: residents)
-                        .tag(0)
-                    SurgeryTypeStep(surgeryType: $aVM.draft.surgeryType)
-                        .tag(1)
-                    ComplexityStep(selection: $aVM.draft.complexity)
-                        .tag(2)
-                    TrustStep(selection: $aVM.draft.trustLevel)
-                        .tag(3)
-                    NotesStep(title: "Note", text: $aVM.draft.note)
-                        .tag(4)
-                    NotesStep(title: "Feedback", text: $aVM.draft.feedback)
-                        .tag(5)
-                    ReviewStep(submit: submit, draft: aVM.draft)
-                        .tag(6)
-                }
-                .tabViewStyle(.page(indexDisplayMode: .always))
-            }
-            .navigationTitle("New Assessment")
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Close") { dismiss() } }
-            }
-            .task {
-                do {
-                    residents = try await api.residents()
-                } catch {
-                    loadError = "Failed to load residents"
+
+    init(preselectedResidentId: String? = nil) {
+        if let id = preselectedResidentId {
+            _aVM = EnvironmentObject()
+            Task.detached {
+                await MainActor.run {
+                    AssessmentViewModel().draft.residentId = id
                 }
             }
         }
     }
+
+    var body: some View {
+        NavigationStack {
+            VStack {
+                TabView(selection: $step) {
+                    SelectResidentStep(selectedId: $aVM.draft.residentId, residents: residents).tag(0)
+                    SurgeryTypeStep(surgeryType: $aVM.draft.surgeryType).tag(1)
+                    ComplexityStep(selection: $aVM.draft.complexity).tag(2)
+                    TrustStep(selection: $aVM.draft.trustLevel).tag(3)
+                    NotesStep(title: "Note", text: $aVM.draft.note).tag(4)
+                    NotesStep(title: "Feedback", text: $aVM.draft.feedback).tag(5)
+                    ReviewStep(submit: submit, draft: aVM.draft).tag(6)
+                }
+                .tabViewStyle(.page(indexDisplayMode: .always))
+            }
+            .navigationTitle("New Assessment")
+            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Close") { dismiss() } } }
+            .task {
+                do { residents = try await api.residents() }
+                catch { loadError = "Failed to load residents" }
+            }
+        }
+    }
+
     func submit() {
         Task {
             aVM.isSubmitting = true
@@ -63,21 +64,25 @@ struct SelectResidentStep: View {
     let residents: [Resident]
     var body: some View {
         VStack {
-            Text("Select Resident").font(.title2).bold()
             if residents.isEmpty { ProgressView().padding() }
             else {
-                List(residents, id: \.id) { r in
+                List(residents) { r in
                     HStack {
-                        Text(r.name)
+                        VStack(alignment: .leading) {
+                            Text(r.name)
+                            Text("PGY \(r.pgYear)").foregroundStyle(.secondary).font(.subheadline)
+                        }
                         Spacer()
                         if selectedId == r.id { Image(systemName: "checkmark.circle.fill") }
                     }
                     .contentShape(Rectangle())
                     .onTapGesture { selectedId = r.id }
                 }
+                .listStyle(.insetGrouped)
             }
             Spacer()
-        }.padding()
+        }
+        .padding(.top, 8)
     }
 }
 
@@ -144,4 +149,10 @@ struct ReviewStep: View {
             Spacer()
         }.padding()
     }
+}
+
+#Preview {
+    NewAssessmentWizard()
+        .environmentObject(APIClient(auth: AuthStore()))
+        .environmentObject(AssessmentViewModel())
 }

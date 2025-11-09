@@ -88,6 +88,11 @@ final class APIClient: ObservableObject {
         let (_, http) = try await request("residents/\(id)", method: "PATCH", body: payload, authorized: true)
         guard http.statusCode == 200 else { throw URLError(.badServerResponse) }
     }
+    
+    func deleteResident(id: String) async throws {
+        let (_, http) = try await request("residents/\(id)", method: "DELETE", authorized: true)
+        guard http.statusCode == 204 else { throw URLError(.badServerResponse) }
+    }
 }
 
 struct TokenPair: Codable { let accessToken: String; let refreshToken: String }
