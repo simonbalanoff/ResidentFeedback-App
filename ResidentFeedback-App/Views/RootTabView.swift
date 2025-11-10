@@ -16,17 +16,15 @@ struct RootTabView: View {
 
     var body: some View {
         ZStack {
-            Group {
-                switch selected {
-                case .residents:
-                    NavigationStack { ResidentsListView(startNewAssessment: { showNew = true }) }
-                        .transition(.opacity)
-                case .settings:
-                    NavigationStack { SettingsView() }
-                        .transition(.opacity)
-                }
+            NavigationStack {
+                ResidentsListView(startNewAssessment: { showNew = true })
             }
-            .animation(.easeInOut(duration: 0.18), value: selected)
+            .opacity(selected == .residents ? 1 : 0)
+            .allowsHitTesting(selected == .residents)
+
+            NavigationStack { SettingsView() }
+                .opacity(selected == .settings ? 1 : 0)
+                .allowsHitTesting(selected == .settings)
 
             VStack { Spacer() }
                 .safeAreaInset(edge: .bottom) {
@@ -38,10 +36,11 @@ struct RootTabView: View {
                     .padding(.horizontal, 16)
                     .padding(.top, 6)
                     .padding(.bottom, 8)
-                    .background(.clear)
                 }
         }
-        .sheet(isPresented: $showNew) { NewAssessmentWizard() }
+        .fullScreenCover(isPresented: $showNew) {
+            NewAssessmentWizard()
+        }
     }
 }
 
@@ -109,15 +108,8 @@ private struct TabButton: View {
                         .font(.system(size: 20, weight: .semibold))
                         .symbolRenderingMode(.hierarchical)
                         .foregroundStyle(active ? Color.primary : .secondary)
-                    if active {
-                        Capsule()
-                            .fill(Color.accentColor)
-                            .frame(width: 16, height: 3)
-                            .matchedGeometryEffect(id: "underline", in: ns)
-                            .offset(y: 8)
-                    } else {
-                        Color.clear.frame(width: 16, height: 3).offset(y: 8)
-                    }
+                    
+                    Color.clear.frame(width: 16, height: 3).offset(y: 8)
                 }
                 Text(title)
                     .font(.footnote.weight(active ? .semibold : .regular))

@@ -38,8 +38,7 @@ enum TrustLevel: String, CaseIterable, Identifiable, Codable {
 struct AssessmentDraft: Codable {
     var residentId: String = ""
     var surgeryType: String = ""
-    var complexity: CaseComplexity = .Moderate
-    var trustLevel: TrustLevel = .DirectSupervision
-    var note: String = ""
+    var complexity: CaseComplexity?
+    var trustLevel: TrustLevel?
     var feedback: String = ""
 }

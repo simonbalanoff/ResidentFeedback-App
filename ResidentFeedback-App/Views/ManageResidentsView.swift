@@ -19,9 +19,10 @@ struct ManageResidentsView: View {
     var body: some View {
         NavigationStack {
             Group {
-                if loading { ProgressView() }
-                else if let e = loadError { VStack(spacing: 12) { ErrorBanner(message: e); Button("Retry") { Task { await reload() } } } }
-                else {
+                if loading && residents.isEmpty { ProgressView() }
+                else if let e = loadError, residents.isEmpty {
+                    VStack(spacing: 12) { ErrorBanner(message: e); Button("Retry") { Task { await reload() } } }
+                } else {
                     List {
                         ForEach(residents) { r in
                             HStack {
@@ -35,6 +36,13 @@ struct ManageResidentsView: View {
                                 }))
                                 .labelsHidden()
                                 .disabled(workingIds.contains(r.id))
+                            }
+                            .contextMenu {
+                                Button("Rename") {
+                                    Task {
+                                        await rename(r)
+                                    }
+                                }
                             }
                         }
                         .onDelete { idx in
@@ -55,6 +63,7 @@ struct ManageResidentsView: View {
                 CreateResidentSheet { created in
                     showCreate = false
                     residents.insert(created, at: 0)
+                    NotificationCenter.default.post(name: .residentsDidChange, object: nil)
                 }
             }
         }
@@ -74,10 +83,10 @@ struct ManageResidentsView: View {
         do {
             try await api.updateResident(id: id, active: value)
             if let i = residents.firstIndex(where: { $0.id == id }) {
-                var r = residents[i]
-                r = Resident(id: r.id, name: r.name, pgYear: r.pgYear, active: value)
-                residents[i] = r
+                let r = residents[i]
+                residents[i] = Resident(id: r.id, name: r.name, pgYear: r.pgYear, active: value)
             }
+            NotificationCenter.default.post(name: .residentsDidChange, object: nil)
         } catch {}
     }
 
@@ -86,6 +95,38 @@ struct ManageResidentsView: View {
             do { try await api.deleteResident(id: id) } catch {}
         }
         await reload()
+        NotificationCenter.default.post(name: .residentsDidChange, object: nil)
+    }
+
+    func rename(_ r: Resident) async {
+        let new = await promptRename(defaultText: r.name)
+        guard let new, !new.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        do {
+            try await api.updateResident(id: r.id, name: new)
+            if let i = residents.firstIndex(where: { $0.id == r.id }) {
+                let cur = residents[i]
+                residents[i] = Resident(id: cur.id, name: new, pgYear: cur.pgYear, active: cur.active)
+            }
+            NotificationCenter.default.post(name: .residentsDidChange, object: nil)
+        } catch {}
+    }
+
+    @MainActor
+    func promptRename(defaultText: String) async -> String? {
+        await withCheckedContinuation { cont in
+            var text = defaultText
+            let alert = UIAlertController(title: "Rename Resident", message: nil, preferredStyle: .alert)
+            alert.addTextField { $0.text = defaultText }
+            alert.addAction(UIAlertAction(title: "Cancel", style: .cancel) { _ in cont.resume(returning: nil) })
+            alert.addAction(UIAlertAction(title: "Save", style: .default) { _ in
+                text = alert.textFields?.first?.text ?? defaultText
+                cont.resume(returning: text)
+            })
+            UIApplication.shared.connectedScenes
+                .compactMap { $0 as? UIWindowScene }
+                .first?.keyWindow?.rootViewController?
+                .present(alert, animated: true)
+        }
     }
 }
 
