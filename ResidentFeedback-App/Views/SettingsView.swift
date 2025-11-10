@@ -10,8 +10,9 @@ import SwiftUI
 struct SettingsView: View {
     @EnvironmentObject var auth: AuthStore
     @EnvironmentObject var appearance: AppearanceStore
-    @State private var showLogoutConfirm = false
+    @State private var showLogoutSheet = false
     @State private var showManageResidents = false
+
     var isAdmin: Bool { (auth.me?.role ?? "").lowercased() == "admin" }
 
     var body: some View {
@@ -21,7 +22,9 @@ struct SettingsView: View {
                     Image(systemName: "person.crop.circle.fill")
                     VStack(alignment: .leading) {
                         Text(auth.me?.name ?? "Surgeon")
-                        Text(auth.me?.email ?? "").foregroundStyle(.secondary).font(.subheadline)
+                        Text(auth.me?.email ?? "")
+                            .foregroundStyle(.secondary)
+                            .font(.subheadline)
                     }
                 }
             }
@@ -37,13 +40,13 @@ struct SettingsView: View {
                     Button {
                         showManageResidents = true
                     } label: {
-                        Label("Manage Residents", systemImage: "person.3")
+                        Text("Manage Residents")
                     }
                 }
             }
             Section {
                 Button(role: .destructive) {
-                    showLogoutConfirm = true
+                    showLogoutSheet = true
                 } label: {
                     Text("Log Out")
                 }
@@ -51,9 +54,53 @@ struct SettingsView: View {
         }
         .navigationTitle("Settings")
         .sheet(isPresented: $showManageResidents) { ManageResidentsView() }
-        .confirmationDialog("Are you sure you want to log out?", isPresented: $showLogoutConfirm, titleVisibility: .visible) {
-            Button("Log Out", role: .destructive) { auth.clear() }
-            Button("Cancel", role: .cancel) {}
+        .sheet(isPresented: $showLogoutSheet) {
+            LogoutSheet {
+                auth.clear()
+            }
+            .presentationDetents([.medium])
+            .presentationDragIndicator(.visible)
+        }
+    }
+}
+
+private struct LogoutSheet: View {
+    let onConfirm: () -> Void
+    @Environment(\.dismiss) var dismiss
+
+    var body: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "rectangle.portrait.and.arrow.right")
+                .font(.system(size: 40, weight: .semibold))
+                .foregroundStyle(.red)
+                .padding(.top, 12)
+            Text("Sign out?")
+                .font(.title2.weight(.semibold))
+            Text("You’ll need to sign in again to continue.")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 24)
+            HStack(spacing: 12) {
+                Button {
+                    dismiss()
+                } label: {
+                    Text("Cancel")
+                        .frame(maxWidth: .infinity, minHeight: 48)
+                }
+                .buttonStyle(.bordered)
+                Button {
+                    onConfirm()
+                    dismiss()
+                } label: {
+                    Text("Log Out")
+                        .frame(maxWidth: .infinity, minHeight: 48)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(.red)
+            }
+            .padding(.horizontal, 16)
+            .padding(.bottom, 16)
         }
     }
 }

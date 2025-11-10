@@ -23,17 +23,6 @@ struct LoginView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                LinearGradient(
-                    colors: [
-                        Color.accentColor.opacity(0.25),
-                        Color(.systemBackground),
-                        Color.accentColor.opacity(0.2)
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-                .ignoresSafeArea()
-
                 VStack(spacing: 28) {
                     Spacer(minLength: 60)
 
@@ -70,12 +59,6 @@ struct LoginView: View {
                             .focused($focused, equals: .password)
                             .onSubmit { login() }
 
-                        if let e = loadError {
-                            ErrorBanner(message: e)
-                                .transition(.opacity)
-                                .padding(.top, 4)
-                        }
-
                         Button(action: login) {
                             HStack(spacing: 8) {
                                 if isLoading { ProgressView() }
@@ -88,6 +71,12 @@ struct LoginView: View {
                         .disabled(disabled)
                         .opacity(disabled ? 0.6 : 1)
                         .padding(.top, 4)
+                        
+                        if let e = loadError {
+                            ErrorBanner(message: e)
+                                .transition(.opacity)
+                                .padding(.top, 4)
+                        }
                     }
                     .padding(.horizontal, 28)
                     .padding(.vertical, 20)

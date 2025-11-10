@@ -125,7 +125,8 @@ private extension NewAssessmentWizard {
             .erased()
             .tag(5)
         }
-        .tabViewStyle(.page(indexDisplayMode: .always))
+        .tabViewStyle(.page(indexDisplayMode: .never))
+        .gesture(DragGesture().onChanged { _ in }.onEnded { _ in })
     }
 
     var bottomBar: some View {
@@ -564,7 +565,7 @@ struct ReviewStep: View {
                         )
                         Divider()
                         InfoRow(
-                            icon: "scalpel.line.dashed",
+                            icon: "stethoscope",
                             title: "Surgery",
                             value: draft.surgeryType.isEmpty ? "Not set" : draft.surgeryType
                         )
