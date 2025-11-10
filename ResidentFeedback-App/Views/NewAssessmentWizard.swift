@@ -1,23 +1,28 @@
-//
-//  NewAssessmentWizard.swift
-//  ResidentFeedback-App
-//
-//  Created by Simon Balanoff on 11/7/25.
-//
-
 import SwiftUI
+import UIKit
+
+private extension View {
+    func erased() -> AnyView { AnyView(self) }
+}
 
 struct NewAssessmentWizard: View {
     @EnvironmentObject var api: APIClient
     @EnvironmentObject var aVM: AssessmentViewModel
     @Environment(\.dismiss) var dismiss
+
     @State private var step = 0
     @State private var residents: [Resident] = []
     @State private var loadError: String?
+
     @State private var residentSelectionVisible = false
     @State private var surgerySelectionVisible = false
     @State private var complexityChosen = false
     @State private var trustChosen = false
+
+    private var selectedResidentName: String {
+        residents.first(where: { $0.id == aVM.draft.residentId })?.name ?? ""
+    }
+
     let preselectedResidentId: String?
 
     init(preselectedResidentId: String? = nil) {
@@ -25,18 +30,14 @@ struct NewAssessmentWizard: View {
     }
 
     private var stepCount: Int { 5 }
+
     private var canGoNext: Bool {
         switch step {
-        case 0:
-            return !aVM.draft.residentId.isEmpty && residentSelectionVisible
-        case 1:
-            return !aVM.draft.surgeryType.isEmpty && surgerySelectionVisible
-        case 2:
-            return complexityChosen
-        case 3:
-            return trustChosen
-        default:
-            return true
+        case 0: return !aVM.draft.residentId.isEmpty && residentSelectionVisible
+        case 1: return !aVM.draft.surgeryType.isEmpty && surgerySelectionVisible
+        case 2: return complexityChosen
+        case 3: return trustChosen
+        default: return true
         }
     }
 
@@ -44,70 +45,11 @@ struct NewAssessmentWizard: View {
         NavigationStack {
             ZStack {
                 Color(.systemBackground).ignoresSafeArea()
+
                 VStack(spacing: 0) {
-                    ProgressView(value: Double(step), total: Double(stepCount))
-                        .tint(.accentColor)
-                        .frame(height: 52)
-                        .clipShape(RoundedRectangle(cornerRadius: 4))
-                        .padding(.horizontal, 16)
-                        .padding(.top, 12)
-
-                    TabView(selection: $step) {
-                        SelectResidentStep(
-                            selectedId: $aVM.draft.residentId,
-                            residents: residents,
-                            isSelectionVisible: $residentSelectionVisible
-                        )
-                        .tag(0)
-
-                        SurgeryTypeStep(
-                            surgeryType: $aVM.draft.surgeryType,
-                            isSelectionVisible: $surgerySelectionVisible
-                        )
-                        .tag(1)
-
-                        ComplexityStep(selection: $aVM.draft.complexity, didChoose: $complexityChosen)
-                            .tag(2)
-
-                        TrustStep(selection: $aVM.draft.trustLevel, didChoose: $trustChosen)
-                            .tag(3)
-
-                        FeedbackStep(text: $aVM.draft.feedback)
-                            .tag(4)
-
-                        ReviewStep(submit: submit, draft: aVM.draft)
-                            .tag(5)
-                    }
-                    .tabViewStyle(.page(indexDisplayMode: .always))
-
-                    VStack(spacing: 12) {
-                        Divider().padding(.horizontal, 8)
-                        HStack(spacing: 12) {
-                            Button {
-                                withAnimation(.easeInOut) {
-                                    if step == 0 { dismiss() } else { step -= 1 }
-                                }
-                            } label: {
-                                Text(step == 0 ? "Close" : "Back")
-                                    .frame(maxWidth: .infinity, minHeight: 48)
-                            }
-                            .buttonStyle(.bordered)
-
-                            Button {
-                                withAnimation(.easeInOut) {
-                                    if step < stepCount { step += 1 } else { submit() }
-                                }
-                            } label: {
-                                Text(step == stepCount ? "Submit" : "Next")
-                                    .frame(maxWidth: .infinity, minHeight: 48)
-                            }
-                            .buttonStyle(.borderedProminent)
-                            .disabled(!canGoNext)
-                        }
-                        .padding(.horizontal, 16)
-                        .padding(.bottom, 24)
-                    }
-                    .background(Color(.systemBackground))
+                    progressHeader
+                    pages
+                    bottomBar
                 }
             }
             .navigationTitle("New Assessment")
@@ -127,8 +69,97 @@ struct NewAssessmentWizard: View {
         }
         .interactiveDismissDisabled(true)
     }
+}
 
-    private func submit() {
+private extension NewAssessmentWizard {
+    var progressHeader: some View {
+        ProgressView(value: Double(step), total: Double(stepCount))
+            .tint(.accentColor)
+            .frame(height: 52)
+            .clipShape(RoundedRectangle(cornerRadius: 4))
+            .padding(.horizontal, 16)
+            .padding(.top, 12)
+    }
+
+    @ViewBuilder
+    var pages: some View {
+        TabView(selection: $step) {
+            SelectResidentStep(
+                selectedId: $aVM.draft.residentId,
+                residents: residents,
+                isSelectionVisible: $residentSelectionVisible
+            )
+            .erased()
+            .tag(0)
+
+            SurgeryTypeStep(
+                surgeryType: $aVM.draft.surgeryType,
+                isSelectionVisible: $surgerySelectionVisible
+            )
+            .erased()
+            .tag(1)
+
+            ComplexityStep(
+                selection: $aVM.draft.complexity,
+                didChoose: $complexityChosen
+            )
+            .erased()
+            .tag(2)
+
+            TrustStep(
+                selection: $aVM.draft.trustLevel,
+                didChoose: $trustChosen
+            )
+            .erased()
+            .tag(3)
+
+            FeedbackStep(text: $aVM.draft.feedback)
+                .erased()
+                .tag(4)
+
+            ReviewStep(
+                submit: submit,
+                draft: aVM.draft,
+                residentName: selectedResidentName
+            )
+            .erased()
+            .tag(5)
+        }
+        .tabViewStyle(.page(indexDisplayMode: .always))
+    }
+
+    var bottomBar: some View {
+        VStack(spacing: 12) {
+            Divider().padding(.horizontal, 8)
+            HStack(spacing: 12) {
+                Button {
+                    withAnimation(.easeInOut) {
+                        if step == 0 { dismiss() } else { step -= 1 }
+                    }
+                } label: {
+                    Text(step == 0 ? "Close" : "Back")
+                        .frame(maxWidth: .infinity, minHeight: 48)
+                }
+                .buttonStyle(.bordered)
+
+                Button {
+                    withAnimation(.easeInOut) {
+                        if step < stepCount { step += 1 } else { submit() }
+                    }
+                } label: {
+                    Text(step == stepCount ? "Submit" : "Next")
+                        .frame(maxWidth: .infinity, minHeight: 48)
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(!canGoNext)
+            }
+            .padding(.horizontal, 16)
+            .padding(.bottom, 24)
+        }
+        .background(Color(.systemBackground))
+    }
+
+    func submit() {
         Task {
             aVM.isSubmitting = true
             do {
@@ -151,58 +182,68 @@ struct SelectResidentStep: View {
     @State private var search = ""
 
     private var filtered: [Resident] {
-        residents
-            .filter { $0.active }
-            .filter { r in
-                search.isEmpty || r.name.localizedCaseInsensitiveContains(search)
-            }
+        let base: [Resident] = residents.filter { $0.active }
+        if search.isEmpty { return base.sorted { $0.name < $1.name } }
+        return base
+            .filter { $0.name.localizedCaseInsensitiveContains(search) }
             .sorted { $0.name < $1.name }
     }
 
     var body: some View {
         VStack(spacing: 12) {
-            HStack(spacing: 8) {
-                Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
-                TextField("Search residents", text: $search)
-                    .textInputAutocapitalization(.words)
-                    .disableAutocorrection(true)
-            }
-            .padding(.horizontal, 12)
-            .frame(height: 40)
-            .background(Color(.secondarySystemBackground))
-            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-            .padding(.horizontal, 16)
-            .padding(.top, 8)
-
-            ScrollView {
-                LazyVStack(spacing: 10) {
-                    if filtered.isEmpty && !residents.isEmpty {
-                        VStack(spacing: 8) {
-                            Image(systemName: "person.crop.circle.badge.questionmark")
-                                .font(.system(size: 28, weight: .semibold))
-                                .foregroundStyle(.secondary)
-                            Text("No matches").font(.headline)
-                            Text("Try a different name").font(.subheadline).foregroundStyle(.secondary)
-                        }
-                        .padding(.top, 24)
-                    } else {
-                        ForEach(filtered) { r in
-                            ResidentRowCard(
-                                resident: r,
-                                selected: r.id == selectedId,
-                                onTap: { selectedId = r.id }
-                            )
-                            .padding(.horizontal, 16)
-                        }
-                    }
-                }
-                .padding(.vertical, 8)
-            }
+            searchField
+            results
         }
         .onAppear { updateSelectionVisibility() }
         .onChange(of: search) { updateSelectionVisibility() }
         .onChange(of: selectedId) { updateSelectionVisibility() }
         .background(Color(.systemBackground))
+    }
+
+    private var searchField: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
+            TextField("Search residents", text: $search)
+                .textInputAutocapitalization(.words)
+                .disableAutocorrection(true)
+        }
+        .padding(.horizontal, 12)
+        .frame(height: 40)
+        .background(Color(.secondarySystemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .padding(.horizontal, 16)
+        .padding(.top, 8)
+    }
+
+    @ViewBuilder
+    private var results: some View {
+        ScrollView {
+            LazyVStack(spacing: 10) {
+                if filtered.isEmpty && !residents.isEmpty {
+                    emptyState.padding(.top, 24)
+                } else {
+                    ForEach(filtered) { r in
+                        ResidentRowCard(
+                            resident: r,
+                            selected: r.id == selectedId,
+                            onTap: { selectedId = r.id }
+                        )
+                        .padding(.horizontal, 16)
+                    }
+                }
+            }
+            .padding(.vertical, 8)
+        }
+    }
+
+    private var emptyState: some View {
+        VStack(spacing: 8) {
+            Image(systemName: "person.crop.circle.badge.questionmark")
+                .font(.system(size: 28, weight: .semibold))
+                .foregroundStyle(.secondary)
+            Text("No matches").font(.headline)
+            Text("Try a different name").font(.subheadline).foregroundStyle(.secondary)
+        }
     }
 
     private func updateSelectionVisibility() {
@@ -249,48 +290,56 @@ struct SurgeryTypeStep: View {
 
     var body: some View {
         VStack(spacing: 12) {
-            HStack(spacing: 8) {
-                Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
-                TextField("Search surgeries", text: $search)
-                    .textInputAutocapitalization(.words)
-                    .disableAutocorrection(true)
-            }
-            .padding(.horizontal, 12)
-            .frame(height: 40)
-            .background(Color(.secondarySystemBackground))
-            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-            .padding(.horizontal, 16)
-            .padding(.top, 8)
-
-            ScrollView {
-                LazyVStack(spacing: 10) {
-                    if filtered.isEmpty {
-                        VStack(spacing: 8) {
-                            Image(systemName: "questionmark.folder")
-                                .font(.system(size: 28, weight: .semibold))
-                                .foregroundStyle(.secondary)
-                            Text("No matches").font(.headline)
-                            Text("Try a different term").font(.subheadline).foregroundStyle(.secondary)
-                        }
-                        .padding(.top, 24)
-                    } else {
-                        ForEach(filtered, id: \.self) { item in
-                            SurgeryRowCard(
-                                title: item,
-                                selected: item == surgeryType,
-                                onTap: { surgeryType = item }
-                            )
-                            .padding(.horizontal, 16)
-                        }
-                    }
-                }
-                .padding(.vertical, 8)
-            }
+            searchField
+            results
         }
         .onAppear { updateSelectionVisibility() }
         .onChange(of: search) { updateSelectionVisibility() }
         .onChange(of: surgeryType) { updateSelectionVisibility() }
         .background(Color(.systemBackground))
+    }
+
+    private var searchField: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
+            TextField("Search surgeries", text: $search)
+                .textInputAutocapitalization(.words)
+                .disableAutocorrection(true)
+        }
+        .padding(.horizontal, 12)
+        .frame(height: 40)
+        .background(Color(.secondarySystemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .padding(.horizontal, 16)
+        .padding(.top, 8)
+    }
+
+    @ViewBuilder
+    private var results: some View {
+        ScrollView {
+            LazyVStack(spacing: 10) {
+                if filtered.isEmpty {
+                    VStack(spacing: 8) {
+                        Image(systemName: "questionmark.folder")
+                            .font(.system(size: 28, weight: .semibold))
+                            .foregroundStyle(.secondary)
+                        Text("No matches").font(.headline)
+                        Text("Try a different term").font(.subheadline).foregroundStyle(.secondary)
+                    }
+                    .padding(.top, 24)
+                } else {
+                    ForEach(filtered, id: \.self) { item in
+                        SurgeryRowCard(
+                            title: item,
+                            selected: item == surgeryType,
+                            onTap: { surgeryType = item }
+                        )
+                        .padding(.horizontal, 16)
+                    }
+                }
+            }
+            .padding(.vertical, 8)
+        }
     }
 
     private func updateSelectionVisibility() {
@@ -311,14 +360,17 @@ struct ComplexityStep: View {
     }
 
     private let items: [Item] = [
-        Item(value: .Low, title: "Low", subtitle: "Straightforward case; minimal decision-making and limited steps.", symbol: "1.circle.fill"),
-        Item(value: .Moderate, title: "Moderate", subtitle: "Typical case with standard variations and intra-op judgment.", symbol: "2.circle.fill"),
-        Item(value: .High, title: "High", subtitle: "Complex anatomy, difficult exposure, or major intra-op decisions.", symbol: "3.circle.fill")
+        Item(value: .Low,      title: "Low",      subtitle: "Straightforward case; minimal decision-making and limited steps.", symbol: "1.circle.fill"),
+        Item(value: .Moderate, title: "Moderate", subtitle: "Typical case with standard variations and intra-op judgment.",      symbol: "2.circle.fill"),
+        Item(value: .High,     title: "High",     subtitle: "Complex anatomy, difficult exposure, or major intra-op decisions.", symbol: "3.circle.fill")
     ]
 
     var body: some View {
         VStack(spacing: 12) {
-            Text("Select Case Complexity").font(.headline).padding(.top, 8)
+            Text("Select Case Complexity")
+                .font(.headline)
+                .padding(.top, 8)
+
             ScrollView {
                 LazyVStack(spacing: 10) {
                     ForEach(items) { item in
@@ -355,13 +407,17 @@ struct TrustStep: View {
     }
 
     private let items: [Item] = [
-        Item(value: .DirectSupervision, title: "Direct Supervision", subtitle: "Attending directly observes and guides the resident.", symbol: "eye.trianglebadge.exclamationmark"),
-        Item(value: .IndirectSupervision, title: "Indirect Supervision", subtitle: "Resident performs independently; attending immediately available.", symbol: "person.fill.checkmark")
+        Item(value: .DirectSupervision,  title: "Direct Supervision",  subtitle: "Attending directly observes and guides the resident.",                          symbol: "eye.trianglebadge.exclamationmark"),
+        Item(value: .IndirectSupervision,title: "Indirect Supervision",subtitle: "Resident performs independently; attending immediately available.",              symbol: "person.fill.checkmark"),
+        Item(value: .PracticeReady,      title: "Practice Ready",      subtitle: "Resident functions independently with full trust and minimal oversight.",       symbol: "star.fill")
     ]
 
     var body: some View {
         VStack(spacing: 12) {
-            Text("Select Trust Level").font(.headline).padding(.top, 8)
+            Text("Select Trust Level")
+                .font(.headline)
+                .padding(.top, 8)
+
             ScrollView {
                 LazyVStack(spacing: 10) {
                     ForEach(items) { item in
@@ -398,8 +454,8 @@ struct FeedbackStep: View {
         "Communication & teamwork"
     ]
 
-    var count: Int { draft.count }
-    var progress: Double { min(Double(count) / Double(maxChars), 1.0) }
+    private var count: Int { draft.count }
+    private var progress: Double { min(Double(count) / Double(maxChars), 1.0) }
 
     var body: some View {
         VStack(spacing: 12) {
@@ -410,7 +466,7 @@ struct FeedbackStep: View {
                 .padding(.horizontal, 16)
                 .multilineTextAlignment(.center)
 
-            WrapChips(items: prompts) { chip in
+            ChipsGrid(items: prompts) { chip in
                 if draft.isEmpty { draft = chip + ": " }
                 else { draft += (draft.hasSuffix(" ") ? "" : " ") + chip + ": " }
             }
@@ -436,6 +492,7 @@ struct FeedbackStep: View {
                     .tint(.accentColor)
                     .frame(height: 6)
                     .clipShape(RoundedRectangle(cornerRadius: 3))
+
                 HStack {
                     Text("\(count)/\(maxChars)")
                         .font(.footnote)
@@ -460,28 +517,152 @@ struct FeedbackStep: View {
     }
 }
 
+private struct ChipsGrid: View {
+    let items: [String]
+    let onTap: (String) -> Void
+
+    private var columns: [GridItem] {
+        [GridItem(.adaptive(minimum: 140), spacing: 8)]
+    }
+
+    var body: some View {
+        LazyVGrid(columns: columns, alignment: .leading, spacing: 8) {
+            ForEach(items, id: \.self) { text in
+                Button {
+                    onTap(text)
+                } label: {
+                    Text(text)
+                        .font(.footnote.weight(.semibold))
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(Color(.tertiarySystemBackground))
+                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
+        }
+    }
+}
+
 struct ReviewStep: View {
     let submit: () -> Void
     let draft: AssessmentDraft
+    let residentName: String
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Review").font(.title2).bold()
-            Group {
-                HStack { Text("Resident"); Spacer(); Text(draft.residentId.isEmpty ? "Not selected" : draft.residentId) }
-                HStack { Text("Surgery Type"); Spacer(); Text(draft.surgeryType.isEmpty ? "Not set" : draft.surgeryType) }
-                HStack { Text("Complexity"); Spacer(); Text(draft.complexity?.rawValue ?? "Not selected") }
-                HStack { Text("Trust"); Spacer(); Text(draft.trustLevel?.rawValue ?? "Not selected") }
-            }
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Feedback").bold()
-                Text(draft.feedback.isEmpty ? "None" : draft.feedback)
-            }
-            Button(action: submit) { Text("Submit Assessment").frame(maxWidth: .infinity) }
+        ScrollView {
+            VStack(spacing: 16) {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Summary")
+                        .font(.title2.weight(.semibold))
+
+                    VStack(spacing: 0) {
+                        InfoRow(
+                            icon: "person.fill",
+                            title: "Resident",
+                            value: residentName.isEmpty ? "Not selected" : residentName
+                        )
+                        Divider()
+                        InfoRow(
+                            icon: "scalpel.line.dashed",
+                            title: "Surgery",
+                            value: draft.surgeryType.isEmpty ? "Not set" : draft.surgeryType
+                        )
+                    }
+                    .background(Color(.secondarySystemBackground))
+                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                }
+                .padding(.horizontal, 16)
+                .padding(.top, 8)
+
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Assessment")
+                        .font(.headline)
+
+                    HStack(spacing: 8) {
+                        Pill(text: draft.complexity?.rawValue ?? "Not selected", systemImage: "chart.bar.fill", highlighted: draft.complexity != nil)
+                        Pill(text: draft.trustLevel?.rawValue ?? "Not selected", systemImage: "lock.open.trianglebadge.exclamationmark", highlighted: draft.trustLevel != nil)
+                        Spacer()
+                    }
+                }
+                .padding(.horizontal, 16)
+
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Feedback")
+                        .font(.headline)
+
+                    if draft.feedback.isEmpty {
+                        Text("No feedback provided")
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(14)
+                            .background(Color(.secondarySystemBackground))
+                            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    } else {
+                        Text(draft.feedback)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(14)
+                            .background(Color(.secondarySystemBackground))
+                            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    }
+                }
+                .padding(.horizontal, 16)
+
+                Button(action: submit) {
+                    Text("Submit Assessment")
+                        .frame(maxWidth: .infinity, minHeight: 48)
+                }
                 .buttonStyle(.borderedProminent)
+                .padding(.horizontal, 16)
+                .padding(.bottom, 24)
+            }
+        }
+        .background(Color(.systemBackground))
+    }
+}
+
+private struct InfoRow: View {
+    let icon: String
+    let title: String
+    let value: String
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: icon)
+                .foregroundStyle(Color.accentColor)
+                .frame(width: 24)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                Text(value)
+                    .font(.body.weight(.medium))
+                    .lineLimit(2)
+                    .multilineTextAlignment(.leading)
+            }
             Spacer()
         }
-        .padding()
-        .background(Color(.systemBackground))
+        .padding(14)
+    }
+}
+
+private struct Pill: View {
+    let text: String
+    let systemImage: String
+    let highlighted: Bool
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Image(systemName: systemImage)
+                .imageScale(.small)
+            Text(text)
+                .font(.footnote.weight(.semibold))
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .background(highlighted ? Color.accentColor.opacity(0.15) : Color(.tertiarySystemBackground))
+        .foregroundStyle(highlighted ? Color.accentColor : .primary)
+        .clipShape(Capsule())
     }
 }
 
@@ -544,16 +725,24 @@ private struct ComplexityCard: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
-            Image(systemName: symbol).font(.system(size: 24, weight: .semibold)).foregroundStyle(Color.accentColor).frame(width: 28)
+            Image(systemName: symbol)
+                .font(.system(size: 24, weight: .semibold))
+                .foregroundStyle(Color.accentColor)
+                .frame(width: 28)
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
                     Text(title).font(.headline)
                     Spacer()
                     if selected {
-                        Image(systemName: "checkmark.circle.fill").symbolRenderingMode(.hierarchical).foregroundStyle(Color.accentColor)
+                        Image(systemName: "checkmark.circle.fill")
+                            .symbolRenderingMode(.hierarchical)
+                            .foregroundStyle(Color.accentColor)
                     }
                 }
-                Text(subtitle).font(.subheadline).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                Text(subtitle)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
         .padding()
@@ -571,89 +760,30 @@ private struct TrustCard: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
-            Image(systemName: symbol).font(.system(size: 24, weight: .semibold)).foregroundStyle(Color.accentColor).frame(width: 28)
+            Image(systemName: symbol)
+                .font(.system(size: 24, weight: .semibold))
+                .foregroundStyle(Color.accentColor)
+                .frame(width: 28)
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
                     Text(title).font(.headline)
                     Spacer()
                     if selected {
-                        Image(systemName: "checkmark.circle.fill").symbolRenderingMode(.hierarchical).foregroundStyle(Color.accentColor)
+                        Image(systemName: "checkmark.circle.fill")
+                            .symbolRenderingMode(.hierarchical)
+                            .foregroundStyle(Color.accentColor)
                     }
                 }
-                Text(subtitle).font(.subheadline).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                Text(subtitle)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
         .padding()
         .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Color(.secondarySystemBackground)))
         .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(selected ? Color.accentColor : Color.clear, lineWidth: 1.4))
         .contentShape(Rectangle())
-    }
-}
-
-private struct WrapChips: View {
-    let items: [String]
-    let onTap: (String) -> Void
-
-    var body: some View {
-        FlowLayout(items: items) { text in
-            Button {
-                onTap(text)
-            } label: {
-                Text(text)
-                    .font(.footnote.weight(.semibold))
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
-                    .background(Color(.tertiarySystemBackground))
-                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-            }
-        }
-    }
-}
-
-private struct FlowLayout<Data: RandomAccessCollection, Content: View>: View where Data.Element: Hashable {
-    let items: Data
-    let content: (Data.Element) -> Content
-
-    init(items: Data, @ViewBuilder content: @escaping (Data.Element) -> Content) {
-        self.items = items
-        self.content = content
-    }
-
-    var body: some View {
-        GeometryReader { proxy in
-            self.generateContent(in: proxy.size.width)
-        }
-        .frame(minHeight: 0)
-    }
-
-    private func generateContent(in totalWidth: CGFloat) -> some View {
-        var width = CGFloat.zero
-        var rows: [[Data.Element]] = [[]]
-        for item in items {
-            let itemWidth = estimateWidth(for: item)
-            if width + itemWidth > totalWidth {
-                rows.append([item])
-                width = itemWidth
-            } else {
-                rows[rows.count - 1].append(item)
-                width += itemWidth
-            }
-        }
-        return VStack(alignment: .leading, spacing: 8) {
-            ForEach(rows.indices, id: \.self) { row in
-                HStack(spacing: 8) {
-                    ForEach(rows[row], id: \.self) { item in
-                        content(item)
-                    }
-                }
-            }
-        }
-    }
-
-    private func estimateWidth(for item: Data.Element) -> CGFloat {
-        let s = String(describing: item)
-        let w = s.size(withAttributes: [.font: UIFont.systemFont(ofSize: 13, weight: .semibold)]).width
-        return w + 20 + 12
     }
 }
 
