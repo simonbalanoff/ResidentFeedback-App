@@ -1,3 +1,10 @@
+//
+//  NewAssessmentWizard.swift
+//  ResidentFeedback-App
+//
+//  Created by Simon Balanoff on 11/7/25.
+//
+
 import SwiftUI
 import UIKit
 
@@ -72,6 +79,14 @@ struct NewAssessmentWizard: View {
 }
 
 private extension NewAssessmentWizard {
+    /// Dismisses the keyboard for any focused UIKit-backed control (TextField/TextEditor).
+    func dismissKeyboard() {
+        #if canImport(UIKit)
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder),
+                                        to: nil, from: nil, for: nil)
+        #endif
+    }
+
     var progressHeader: some View {
         ProgressView(value: Double(step), total: Double(stepCount))
             .tint(.accentColor)
@@ -125,8 +140,8 @@ private extension NewAssessmentWizard {
             .erased()
             .tag(5)
         }
-        .tabViewStyle(.page(indexDisplayMode: .never))
-        .gesture(DragGesture().onChanged { _ in }.onEnded { _ in })
+        .tabViewStyle(.page(indexDisplayMode: .never))     // hide dots
+        .gesture(DragGesture().onChanged { _ in }.onEnded { _ in }) // swallow swipe
     }
 
     var bottomBar: some View {
@@ -134,6 +149,7 @@ private extension NewAssessmentWizard {
             Divider().padding(.horizontal, 8)
             HStack(spacing: 12) {
                 Button {
+                    dismissKeyboard() // ← hide keyboard
                     withAnimation(.easeInOut) {
                         if step == 0 { dismiss() } else { step -= 1 }
                     }
@@ -144,6 +160,7 @@ private extension NewAssessmentWizard {
                 .buttonStyle(.bordered)
 
                 Button {
+                    dismissKeyboard() // ← hide keyboard
                     withAnimation(.easeInOut) {
                         if step < stepCount { step += 1 } else { submit() }
                     }
@@ -161,6 +178,7 @@ private extension NewAssessmentWizard {
     }
 
     func submit() {
+        dismissKeyboard() // ← also hide on submit
         Task {
             aVM.isSubmitting = true
             do {
@@ -227,7 +245,13 @@ struct SelectResidentStep: View {
                         ResidentRowCard(
                             resident: r,
                             selected: r.id == selectedId,
-                            onTap: { selectedId = r.id }
+                            onTap: {
+                                selectedId = r.id
+                                // hide keyboard when choosing an item
+                                #if canImport(UIKit)
+                                UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                                #endif
+                            }
                         )
                         .padding(.horizontal, 16)
                     }
@@ -333,7 +357,13 @@ struct SurgeryTypeStep: View {
                         SurgeryRowCard(
                             title: item,
                             selected: item == surgeryType,
-                            onTap: { surgeryType = item }
+                            onTap: {
+                                surgeryType = item
+                                // hide keyboard when choosing an item
+                                #if canImport(UIKit)
+                                UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                                #endif
+                            }
                         )
                         .padding(.horizontal, 16)
                     }
@@ -384,6 +414,9 @@ struct ComplexityStep: View {
                         .onTapGesture {
                             selection = item.value
                             didChoose = true
+                            #if canImport(UIKit)
+                            UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                            #endif
                         }
                         .padding(.horizontal, 16)
                     }
@@ -431,6 +464,9 @@ struct TrustStep: View {
                         .onTapGesture {
                             selection = item.value
                             didChoose = true
+                            #if canImport(UIKit)
+                            UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                            #endif
                         }
                         .padding(.horizontal, 16)
                     }
