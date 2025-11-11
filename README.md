@@ -1,8 +1,8 @@
 # 🩺 Resident Feedback App
 
-> ⚠️ **Not Open Source — View Only**  
-> This repository is provided **for portfolio review**. You may **view** the code to evaluate my work.  
-> You may **not** use, copy, modify, or distribute any part of this project.
+> ⚠️ **Public, View-Only — Not Open Source**  
+> This code is published for portfolio review. You may **view** it to evaluate my work.  
+> You may **not** use, copy, modify, or distribute it.
 
 ## 📱 Overview
 
