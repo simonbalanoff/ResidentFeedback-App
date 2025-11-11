@@ -71,7 +71,21 @@ struct LoginView: View {
                         .disabled(disabled)
                         .opacity(disabled ? 0.6 : 1)
                         .padding(.top, 4)
-                        
+
+                        if BiometricAuth.isAvailable,
+                           let savedEmail = Keychain.get("savedEmail"),
+                           let savedPassword = Keychain.get("savedPassword") {
+                            Button {
+                                Task { await biometricLogin(savedEmail: savedEmail, savedPassword: savedPassword) }
+                            } label: {
+                                Label("Sign In with Face ID", systemImage: "faceid")
+                                    .frame(maxWidth: .infinity)
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .tint(.accentColor)
+                            .padding(.top, 6)
+                        }
+
                         if let e = loadError {
                             ErrorBanner(message: e)
                                 .transition(.opacity)
@@ -108,11 +122,31 @@ struct LoginView: View {
                     refresh: api.auth.refreshToken ?? ""
                 )
                 authStore.me = api.auth.me
+                Keychain.set(email, key: "savedEmail")
+                Keychain.set(password, key: "savedPassword")
             } catch {
                 loadError = "Login failed"
             }
             isLoading = false
         }
+    }
+
+    func biometricLogin(savedEmail: String, savedPassword: String) async {
+        let ok = await BiometricAuth.authenticate(reason: "Sign in to your account")
+        guard ok else { return }
+        isLoading = true
+        loadError = nil
+        do {
+            try await api.login(email: savedEmail, password: savedPassword)
+            authStore.setTokens(
+                access: api.auth.accessToken ?? "",
+                refresh: api.auth.refreshToken ?? ""
+            )
+            authStore.me = api.auth.me
+        } catch {
+            loadError = "Biometric login failed"
+        }
+        isLoading = false
     }
 }
 

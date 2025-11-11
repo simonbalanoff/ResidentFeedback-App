@@ -53,7 +53,9 @@ struct SettingsView: View {
             }
         }
         .navigationTitle("Settings")
-        .sheet(isPresented: $showManageResidents) { ManageResidentsView() }
+        .sheet(isPresented: $showManageResidents, onDismiss: {
+            NotificationCenter.default.post(name: .residentsDidChange, object: nil)
+        }) { ManageResidentsView() }
         .sheet(isPresented: $showLogoutSheet) {
             LogoutSheet {
                 auth.clear()

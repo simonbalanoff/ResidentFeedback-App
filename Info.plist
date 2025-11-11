@@ -43,5 +43,7 @@
 	<string>Photo library access may be required for uploading content.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Microphone access may be required for recording features.</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>Use Face ID to quickly sign in to your account.</string>
 </dict>
 </plist>

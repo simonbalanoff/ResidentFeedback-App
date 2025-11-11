@@ -74,6 +74,9 @@ struct ResidentsListView: View {
         }
         .task { await initialLoad() }
         .refreshable { await refresh() }
+        .onReceive(NotificationCenter.default.publisher(for: .residentsDidChange)) { _ in
+            Task { await refresh() }
+        }
     }
 
     func initialLoad() async {
@@ -95,7 +98,6 @@ struct ResidentsListView: View {
         catch { loadError = "Failed to load residents" }
     }
 }
-
 
 extension Notification.Name {
     static let residentsDidChange = Notification.Name("residentsDidChange")
