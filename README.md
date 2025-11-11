@@ -1,5 +1,9 @@
 # 🩺 Resident Feedback App
 
+> ⚠️ **Not Open Source — View Only**  
+> This repository is provided **for portfolio review**. You may **view** the code to evaluate my work.  
+> You may **not** use, copy, modify, or distribute any part of this project.
+
 ## 📱 Overview
 
 The **Resident Feedback App** enables surgeons to log structured feedback for residents and fellows directly from their device.  
