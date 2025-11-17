@@ -8,5 +8,10 @@
 import Foundation
 
 enum AppEnv {
-    static let baseURL = URL(string: "https://residentfeedback-api.onrender.com/")!
+    static let isProduction = true
+    static var baseURL: URL {
+        isProduction ?
+        URL(string: "https://residentfeedback-api.onrender.com/")! :
+        URL(string: "http://localhost:3000/")!
+    }
 }

@@ -17,33 +17,63 @@ struct SettingsView: View {
 
     var body: some View {
         Form {
-            Section("Account") {
-                HStack {
-                    Image(systemName: "person.crop.circle.fill")
-                    VStack(alignment: .leading) {
+            Section {
+                HStack(spacing: 14) {
+                    ZStack {
+                        Circle()
+                            .fill(Theme.primary.opacity(0.12))
+                            .frame(width: 44, height: 44)
+
+                        Image(systemName: "person.crop.circle.fill")
+                            .font(.system(size: 26))
+                            .foregroundStyle(Theme.primary)
+                    }
+
+                    VStack(alignment: .leading, spacing: 3) {
                         Text(auth.me?.name ?? "Surgeon")
+                            .font(.headline)
+                            .foregroundStyle(Theme.text)
+
                         Text(auth.me?.email ?? "")
-                            .foregroundStyle(.secondary)
                             .font(.subheadline)
+                            .foregroundStyle(Theme.subtext)
                     }
                 }
+                .padding(.vertical, 4)
             }
+            .listRowBackground(Theme.card)
+
             Section("Appearance") {
-                Picker("Mode", selection: Binding(get: { appearance.mode }, set: { appearance.set($0) })) {
+                Picker("Mode", selection: Binding(
+                    get: { appearance.mode },
+                    set: { appearance.set($0) }
+                )) {
                     Text("System").tag(AppearanceMode.system)
                     Text("Light").tag(AppearanceMode.light)
                     Text("Dark").tag(AppearanceMode.dark)
                 }
             }
+            .listRowBackground(Theme.card)
+
             if isAdmin {
                 Section("Admin") {
                     Button {
                         showManageResidents = true
                     } label: {
-                        Text("Manage Residents")
+                        HStack {
+                            Image(systemName: "person.3.sequence.fill")
+                                .foregroundStyle(Theme.accent)
+                            Text("Manage Residents")
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .foregroundStyle(.secondary)
+                                .font(.footnote)
+                        }
                     }
                 }
+                .listRowBackground(Theme.card)
             }
+
             Section {
                 Button(role: .destructive) {
                     showLogoutSheet = true
@@ -51,11 +81,19 @@ struct SettingsView: View {
                     Text("Log Out")
                 }
             }
+            .listRowBackground(Theme.card)
         }
+        .scrollContentBackground(.hidden)
+        .background(Theme.bg)
         .navigationTitle("Settings")
-        .sheet(isPresented: $showManageResidents, onDismiss: {
+        .fullScreenCover(isPresented: $showManageResidents, onDismiss: {
             NotificationCenter.default.post(name: .residentsDidChange, object: nil)
-        }) { ManageResidentsView() }
+        }) {
+            NavigationStack {
+                ManageResidentsView()
+            }
+            .tint(Theme.accent)
+        }
         .sheet(isPresented: $showLogoutSheet) {
             LogoutSheet {
                 auth.clear()
@@ -76,13 +114,17 @@ private struct LogoutSheet: View {
                 .font(.system(size: 40, weight: .semibold))
                 .foregroundStyle(.red)
                 .padding(.top, 12)
+
             Text("Sign out?")
                 .font(.title2.weight(.semibold))
+                .foregroundStyle(Theme.text)
+
             Text("You’ll need to sign in again to continue.")
                 .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Theme.subtext)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 24)
+
             HStack(spacing: 12) {
                 Button {
                     dismiss()
@@ -91,6 +133,7 @@ private struct LogoutSheet: View {
                         .frame(maxWidth: .infinity, minHeight: 48)
                 }
                 .buttonStyle(.bordered)
+
                 Button {
                     onConfirm()
                     dismiss()
@@ -104,6 +147,7 @@ private struct LogoutSheet: View {
             .padding(.horizontal, 16)
             .padding(.bottom, 16)
         }
+        .frame(maxWidth: .infinity)
     }
 }
 

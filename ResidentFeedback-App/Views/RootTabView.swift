@@ -16,15 +16,22 @@ struct RootTabView: View {
 
     var body: some View {
         ZStack {
+            Theme.bg
+                .ignoresSafeArea()
+
             NavigationStack {
                 ResidentsListView(startNewAssessment: { showNew = true })
             }
+            .tint(Theme.accent)
             .opacity(selected == .residents ? 1 : 0)
             .allowsHitTesting(selected == .residents)
 
-            NavigationStack { SettingsView() }
-                .opacity(selected == .settings ? 1 : 0)
-                .allowsHitTesting(selected == .settings)
+            NavigationStack {
+                SettingsView()
+            }
+            .tint(Theme.accent)
+            .opacity(selected == .settings ? 1 : 0)
+            .allowsHitTesting(selected == .settings)
 
             VStack { Spacer() }
                 .safeAreaInset(edge: .bottom) {
@@ -62,9 +69,13 @@ private struct FloatingTabBar: View {
             Button(action: plusTapped) {
                 ZStack {
                     Circle()
-                        .fill(Color.accentColor)
+                        .fill(Theme.accent)
                         .frame(width: 58, height: 58)
-                        .shadow(color: Color.accentColor.opacity(scheme == .dark ? 0.35 : 0.25), radius: 12, y: 6)
+                        .shadow(
+                            color: Theme.accent.opacity(scheme == .dark ? 0.35 : 0.25),
+                            radius: 12,
+                            y: 6
+                        )
                     Image(systemName: "plus")
                         .font(.system(size: 22, weight: .bold))
                         .foregroundStyle(.white)
@@ -81,10 +92,12 @@ private struct FloatingTabBar: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
-        .background(.regularMaterial, in: Capsule())
+        .background(Theme.card, in: Capsule())
         .overlay(
-            Capsule().strokeBorder(Color.primary.opacity(0.08))
+            Capsule()
+                .strokeBorder(Theme.sep.opacity(0.7), lineWidth: 1)
         )
+        .shadow(color: .black.opacity(0.1), radius: 12, y: 4)
     }
 
     func tap(_ tab: Tab) {
@@ -106,14 +119,16 @@ private struct TabButton: View {
                 ZStack(alignment: .bottom) {
                     Image(systemName: icon)
                         .font(.system(size: 20, weight: .semibold))
-                        .symbolRenderingMode(.hierarchical)
-                        .foregroundStyle(active ? Color.primary : .secondary)
-                    
-                    Color.clear.frame(width: 16, height: 3).offset(y: 8)
+                        .symbolRenderingMode(.monochrome)
+                        .foregroundStyle(active ? Theme.primary : Theme.subtext)
+
+                    Color.clear
+                        .frame(width: 16, height: 3)
+                        .offset(y: 8)
                 }
                 Text(title)
                     .font(.footnote.weight(active ? .semibold : .regular))
-                    .foregroundStyle(active ? Color.primary : .secondary)
+                    .foregroundStyle(active ? Theme.primary : Theme.subtext)
             }
             .frame(width: 110, height: 48, alignment: .center)
             .contentShape(Rectangle())

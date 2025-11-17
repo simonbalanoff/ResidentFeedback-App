@@ -51,7 +51,7 @@ struct NewAssessmentWizard: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                Color(.systemBackground).ignoresSafeArea()
+                Theme.bg.ignoresSafeArea()
 
                 VStack(spacing: 0) {
                     progressHeader
@@ -79,7 +79,6 @@ struct NewAssessmentWizard: View {
 }
 
 private extension NewAssessmentWizard {
-    /// Dismisses the keyboard for any focused UIKit-backed control (TextField/TextEditor).
     func dismissKeyboard() {
         #if canImport(UIKit)
         UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder),
@@ -89,7 +88,7 @@ private extension NewAssessmentWizard {
 
     var progressHeader: some View {
         ProgressView(value: Double(step), total: Double(stepCount))
-            .tint(.accentColor)
+            .tint(Theme.accent)
             .frame(height: 52)
             .clipShape(RoundedRectangle(cornerRadius: 4))
             .padding(.horizontal, 16)
@@ -140,8 +139,8 @@ private extension NewAssessmentWizard {
             .erased()
             .tag(5)
         }
-        .tabViewStyle(.page(indexDisplayMode: .never))     // hide dots
-        .gesture(DragGesture().onChanged { _ in }.onEnded { _ in }) // swallow swipe
+        .tabViewStyle(.page(indexDisplayMode: .never))
+        .gesture(DragGesture().onChanged { _ in }.onEnded { _ in })
     }
 
     var bottomBar: some View {
@@ -149,7 +148,7 @@ private extension NewAssessmentWizard {
             Divider().padding(.horizontal, 8)
             HStack(spacing: 12) {
                 Button {
-                    dismissKeyboard() // ← hide keyboard
+                    dismissKeyboard()
                     withAnimation(.easeInOut) {
                         if step == 0 { dismiss() } else { step -= 1 }
                     }
@@ -157,10 +156,11 @@ private extension NewAssessmentWizard {
                     Text(step == 0 ? "Close" : "Back")
                         .frame(maxWidth: .infinity, minHeight: 48)
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(.borderedProminent)
+                .tint(Theme.accent)
 
                 Button {
-                    dismissKeyboard() // ← hide keyboard
+                    dismissKeyboard()
                     withAnimation(.easeInOut) {
                         if step < stepCount { step += 1 } else { submit() }
                     }
@@ -169,16 +169,17 @@ private extension NewAssessmentWizard {
                         .frame(maxWidth: .infinity, minHeight: 48)
                 }
                 .buttonStyle(.borderedProminent)
+                .tint(Theme.accent)
                 .disabled(!canGoNext)
             }
             .padding(.horizontal, 16)
             .padding(.bottom, 24)
         }
-        .background(Color(.systemBackground))
+        .background(Theme.bg)
     }
 
     func submit() {
-        dismissKeyboard() // ← also hide on submit
+        dismissKeyboard()
         Task {
             aVM.isSubmitting = true
             do {
@@ -216,19 +217,20 @@ struct SelectResidentStep: View {
         .onAppear { updateSelectionVisibility() }
         .onChange(of: search) { updateSelectionVisibility() }
         .onChange(of: selectedId) { updateSelectionVisibility() }
-        .background(Color(.systemBackground))
+        .background(Theme.bg)
     }
 
     private var searchField: some View {
         HStack(spacing: 8) {
-            Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
+            Image(systemName: "magnifyingglass")
+                .foregroundStyle(Theme.subtext)
             TextField("Search residents", text: $search)
                 .textInputAutocapitalization(.words)
                 .disableAutocorrection(true)
         }
         .padding(.horizontal, 12)
         .frame(height: 40)
-        .background(Color(.secondarySystemBackground))
+        .background(Theme.card)
         .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
         .padding(.horizontal, 16)
         .padding(.top, 8)
@@ -239,7 +241,8 @@ struct SelectResidentStep: View {
         ScrollView {
             LazyVStack(spacing: 10) {
                 if filtered.isEmpty && !residents.isEmpty {
-                    emptyState.padding(.top, 24)
+                    emptyState
+                        .padding(.top, 24)
                 } else {
                     ForEach(filtered) { r in
                         ResidentRowCard(
@@ -247,7 +250,6 @@ struct SelectResidentStep: View {
                             selected: r.id == selectedId,
                             onTap: {
                                 selectedId = r.id
-                                // hide keyboard when choosing an item
                                 #if canImport(UIKit)
                                 UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
                                 #endif
@@ -265,9 +267,13 @@ struct SelectResidentStep: View {
         VStack(spacing: 8) {
             Image(systemName: "person.crop.circle.badge.questionmark")
                 .font(.system(size: 28, weight: .semibold))
-                .foregroundStyle(.secondary)
-            Text("No matches").font(.headline)
-            Text("Try a different name").font(.subheadline).foregroundStyle(.secondary)
+                .foregroundStyle(Theme.subtext)
+            Text("No matches")
+                .font(.headline)
+                .foregroundStyle(Theme.text)
+            Text("Try a different name")
+                .font(.subheadline)
+                .foregroundStyle(Theme.subtext)
         }
     }
 
@@ -321,19 +327,20 @@ struct SurgeryTypeStep: View {
         .onAppear { updateSelectionVisibility() }
         .onChange(of: search) { updateSelectionVisibility() }
         .onChange(of: surgeryType) { updateSelectionVisibility() }
-        .background(Color(.systemBackground))
+        .background(Theme.bg)
     }
 
     private var searchField: some View {
         HStack(spacing: 8) {
-            Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
+            Image(systemName: "magnifyingglass")
+                .foregroundStyle(Theme.subtext)
             TextField("Search surgeries", text: $search)
                 .textInputAutocapitalization(.words)
                 .disableAutocorrection(true)
         }
         .padding(.horizontal, 12)
         .frame(height: 40)
-        .background(Color(.secondarySystemBackground))
+        .background(Theme.card)
         .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
         .padding(.horizontal, 16)
         .padding(.top, 8)
@@ -347,9 +354,13 @@ struct SurgeryTypeStep: View {
                     VStack(spacing: 8) {
                         Image(systemName: "questionmark.folder")
                             .font(.system(size: 28, weight: .semibold))
-                            .foregroundStyle(.secondary)
-                        Text("No matches").font(.headline)
-                        Text("Try a different term").font(.subheadline).foregroundStyle(.secondary)
+                            .foregroundStyle(Theme.subtext)
+                        Text("No matches")
+                            .font(.headline)
+                            .foregroundStyle(Theme.text)
+                        Text("Try a different term")
+                            .font(.subheadline)
+                            .foregroundStyle(Theme.subtext)
                     }
                     .padding(.top, 24)
                 } else {
@@ -359,7 +370,6 @@ struct SurgeryTypeStep: View {
                             selected: item == surgeryType,
                             onTap: {
                                 surgeryType = item
-                                // hide keyboard when choosing an item
                                 #if canImport(UIKit)
                                 UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
                                 #endif
@@ -400,6 +410,7 @@ struct ComplexityStep: View {
         VStack(spacing: 12) {
             Text("Select Case Complexity")
                 .font(.headline)
+                .foregroundStyle(Theme.text)
                 .padding(.top, 8)
 
             ScrollView {
@@ -424,7 +435,7 @@ struct ComplexityStep: View {
                 .padding(.vertical, 8)
             }
         }
-        .background(Color(.systemBackground))
+        .background(Theme.bg)
     }
 }
 
@@ -450,6 +461,7 @@ struct TrustStep: View {
         VStack(spacing: 12) {
             Text("Select Trust Level")
                 .font(.headline)
+                .foregroundStyle(Theme.text)
                 .padding(.top, 8)
 
             ScrollView {
@@ -474,7 +486,7 @@ struct TrustStep: View {
                 .padding(.vertical, 8)
             }
         }
-        .background(Color(.systemBackground))
+        .background(Theme.bg)
     }
 }
 
@@ -496,10 +508,13 @@ struct FeedbackStep: View {
 
     var body: some View {
         VStack(spacing: 12) {
-            Text("Feedback").font(.headline).padding(.top, 8)
+            Text("Feedback")
+                .font(.headline)
+                .foregroundStyle(Theme.text)
+                .padding(.top, 8)
             Text("Summarize strengths, areas for improvement, and actionable next steps.")
                 .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Theme.subtext)
                 .padding(.horizontal, 16)
                 .multilineTextAlignment(.center)
 
@@ -512,28 +527,28 @@ struct FeedbackStep: View {
             ZStack(alignment: .topLeading) {
                 if draft.isEmpty {
                     Text("Type detailed, actionable feedback…")
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Theme.subtext)
                         .padding(.vertical, 14)
                         .padding(.horizontal, 12)
                 }
                 TextEditor(text: $draft)
                     .frame(minHeight: 200)
                     .padding(8)
-                    .background(Color(.secondarySystemBackground))
+                    .background(Theme.card)
                     .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
             }
             .padding(.horizontal, 16)
 
             VStack(spacing: 6) {
                 ProgressView(value: progress)
-                    .tint(.accentColor)
+                    .tint(Theme.accent)
                     .frame(height: 6)
                     .clipShape(RoundedRectangle(cornerRadius: 3))
 
                 HStack {
                     Text("\(count)/\(maxChars)")
                         .font(.footnote)
-                        .foregroundStyle(count > maxChars ? .red : .secondary)
+                        .foregroundStyle(count > maxChars ? .red : Theme.subtext)
                     Spacer()
                     if count > maxChars {
                         Text("Too long")
@@ -550,7 +565,7 @@ struct FeedbackStep: View {
         .onChange(of: draft) { oldValue, newValue in
             text = String(newValue.prefix(maxChars))
         }
-        .background(Color(.systemBackground))
+        .background(Theme.bg)
     }
 }
 
@@ -572,7 +587,8 @@ private struct ChipsGrid: View {
                         .font(.footnote.weight(.semibold))
                         .padding(.horizontal, 10)
                         .padding(.vertical, 6)
-                        .background(Color(.tertiarySystemBackground))
+                        .background(Theme.card)
+                        .foregroundStyle(Theme.text)
                         .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
@@ -592,6 +608,7 @@ struct ReviewStep: View {
                 VStack(alignment: .leading, spacing: 12) {
                     Text("Summary")
                         .font(.title2.weight(.semibold))
+                        .foregroundStyle(Theme.text)
 
                     VStack(spacing: 0) {
                         InfoRow(
@@ -606,7 +623,7 @@ struct ReviewStep: View {
                             value: draft.surgeryType.isEmpty ? "Not set" : draft.surgeryType
                         )
                     }
-                    .background(Color(.secondarySystemBackground))
+                    .background(Theme.card)
                     .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
                 }
                 .padding(.horizontal, 16)
@@ -615,10 +632,19 @@ struct ReviewStep: View {
                 VStack(alignment: .leading, spacing: 12) {
                     Text("Assessment")
                         .font(.headline)
+                        .foregroundStyle(Theme.text)
 
                     HStack(spacing: 8) {
-                        Pill(text: draft.complexity?.rawValue ?? "Not selected", systemImage: "chart.bar.fill", highlighted: draft.complexity != nil)
-                        Pill(text: draft.trustLevel?.rawValue ?? "Not selected", systemImage: "lock.open.trianglebadge.exclamationmark", highlighted: draft.trustLevel != nil)
+                        Pill(
+                            text: draft.complexity?.rawValue ?? "Not selected",
+                            systemImage: "chart.bar.fill",
+                            highlighted: draft.complexity != nil
+                        )
+                        Pill(
+                            text: draft.trustLevel?.rawValue ?? "Not selected",
+                            systemImage: "lock.open.trianglebadge.exclamationmark",
+                            highlighted: draft.trustLevel != nil
+                        )
                         Spacer()
                     }
                 }
@@ -627,34 +653,28 @@ struct ReviewStep: View {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Feedback")
                         .font(.headline)
+                        .foregroundStyle(Theme.text)
 
                     if draft.feedback.isEmpty {
                         Text("No feedback provided")
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Theme.subtext)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(14)
-                            .background(Color(.secondarySystemBackground))
+                            .background(Theme.card)
                             .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
                     } else {
                         Text(draft.feedback)
+                            .foregroundStyle(Theme.text)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(14)
-                            .background(Color(.secondarySystemBackground))
+                            .background(Theme.card)
                             .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
                     }
                 }
                 .padding(.horizontal, 16)
-
-                Button(action: submit) {
-                    Text("Submit Assessment")
-                        .frame(maxWidth: .infinity, minHeight: 48)
-                }
-                .buttonStyle(.borderedProminent)
-                .padding(.horizontal, 16)
-                .padding(.bottom, 24)
             }
         }
-        .background(Color(.systemBackground))
+        .background(Theme.bg)
     }
 }
 
@@ -666,14 +686,15 @@ private struct InfoRow: View {
     var body: some View {
         HStack(spacing: 12) {
             Image(systemName: icon)
-                .foregroundStyle(Color.accentColor)
+                .foregroundStyle(Theme.accent)
                 .frame(width: 24)
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
                     .font(.footnote)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.subtext)
                 Text(value)
                     .font(.body.weight(.medium))
+                    .foregroundStyle(Theme.text)
                     .lineLimit(2)
                     .multilineTextAlignment(.leading)
             }
@@ -683,7 +704,7 @@ private struct InfoRow: View {
     }
 }
 
-private struct Pill: View {
+struct Pill: View {
     let text: String
     let systemImage: String
     let highlighted: Bool
@@ -697,8 +718,8 @@ private struct Pill: View {
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 8)
-        .background(highlighted ? Color.accentColor.opacity(0.15) : Color(.tertiarySystemBackground))
-        .foregroundStyle(highlighted ? Color.accentColor : .primary)
+        .background(highlighted ? Theme.accent.opacity(0.15) : Theme.card)
+        .foregroundStyle(highlighted ? Theme.accent : Theme.text)
         .clipShape(Capsule())
     }
 }
@@ -710,21 +731,32 @@ private struct ResidentRowCard: View {
 
     var body: some View {
         HStack {
-            Image(systemName: "person.fill").foregroundStyle(Color.accentColor)
+            Image(systemName: "person.fill")
+                .foregroundStyle(Theme.accent)
             VStack(alignment: .leading, spacing: 2) {
-                Text(resident.name).font(.headline)
-                Text("PGY \(resident.pgYear)").font(.subheadline).foregroundStyle(.secondary)
+                Text(resident.name)
+                    .font(.headline)
+                    .foregroundStyle(Theme.text)
+                Text("PGY \(resident.pgYear)")
+                    .font(.subheadline)
+                    .foregroundStyle(Theme.subtext)
             }
             Spacer()
             if selected {
                 Image(systemName: "checkmark.circle.fill")
                     .symbolRenderingMode(.hierarchical)
-                    .foregroundStyle(Color.accentColor)
+                    .foregroundStyle(Theme.accent)
             }
         }
         .padding()
-        .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Color(.secondarySystemBackground)))
-        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(selected ? Color.accentColor : Color.clear, lineWidth: 1.4))
+        .background(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(Theme.card)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .stroke(selected ? Theme.accent : .clear, lineWidth: 1.4)
+        )
         .contentShape(Rectangle())
         .onTapGesture { onTap() }
     }
@@ -737,18 +769,28 @@ private struct SurgeryRowCard: View {
 
     var body: some View {
         HStack {
-            Image(systemName: "scalpel.line.dashed").foregroundStyle(Color.accentColor)
-            Text(title).font(.headline).multilineTextAlignment(.leading)
+            Image(systemName: "scalpel.line.dashed")
+                .foregroundStyle(Theme.accent)
+            Text(title)
+                .font(.headline)
+                .foregroundStyle(Theme.text)
+                .multilineTextAlignment(.leading)
             Spacer()
             if selected {
                 Image(systemName: "checkmark.circle.fill")
                     .symbolRenderingMode(.hierarchical)
-                    .foregroundStyle(Color.accentColor)
+                    .foregroundStyle(Theme.accent)
             }
         }
         .padding()
-        .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Color(.secondarySystemBackground)))
-        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(selected ? Color.accentColor : Color.clear, lineWidth: 1.4))
+        .background(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(Theme.card)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .stroke(selected ? Theme.accent : .clear, lineWidth: 1.4)
+        )
         .contentShape(Rectangle())
         .onTapGesture { onTap() }
     }
@@ -764,27 +806,35 @@ private struct ComplexityCard: View {
         HStack(alignment: .top, spacing: 12) {
             Image(systemName: symbol)
                 .font(.system(size: 24, weight: .semibold))
-                .foregroundStyle(Color.accentColor)
+                .foregroundStyle(Theme.accent)
                 .frame(width: 28)
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
-                    Text(title).font(.headline)
+                    Text(title)
+                        .font(.headline)
+                        .foregroundStyle(Theme.text)
                     Spacer()
                     if selected {
                         Image(systemName: "checkmark.circle.fill")
                             .symbolRenderingMode(.hierarchical)
-                            .foregroundStyle(Color.accentColor)
+                            .foregroundStyle(Theme.accent)
                     }
                 }
                 Text(subtitle)
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.subtext)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
         .padding()
-        .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Color(.secondarySystemBackground)))
-        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(selected ? Color.accentColor : Color.clear, lineWidth: 1.4))
+        .background(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(Theme.card)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .stroke(selected ? Theme.accent : .clear, lineWidth: 1.4)
+        )
         .contentShape(Rectangle())
     }
 }
@@ -799,27 +849,35 @@ private struct TrustCard: View {
         HStack(alignment: .top, spacing: 12) {
             Image(systemName: symbol)
                 .font(.system(size: 24, weight: .semibold))
-                .foregroundStyle(Color.accentColor)
+                .foregroundStyle(Theme.accent)
                 .frame(width: 28)
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
-                    Text(title).font(.headline)
+                    Text(title)
+                        .font(.headline)
+                        .foregroundStyle(Theme.text)
                     Spacer()
                     if selected {
                         Image(systemName: "checkmark.circle.fill")
                             .symbolRenderingMode(.hierarchical)
-                            .foregroundStyle(Color.accentColor)
+                            .foregroundStyle(Theme.accent)
                     }
                 }
                 Text(subtitle)
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.subtext)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
         .padding()
-        .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Color(.secondarySystemBackground)))
-        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(selected ? Color.accentColor : Color.clear, lineWidth: 1.4))
+        .background(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(Theme.card)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .stroke(selected ? Theme.accent : .clear, lineWidth: 1.4)
+        )
         .contentShape(Rectangle())
     }
 }

@@ -16,27 +16,58 @@ final class APIClient: ObservableObject {
         c.waitsForConnectivity = true
         return URLSession(configuration: c)
     }()
+
     init(auth: AuthStore) { self.auth = auth }
 
-    func request(_ path: String, method: String = "GET", body: Encodable? = nil, authorized: Bool = true) async throws -> (Data, HTTPURLResponse) {
+    func request(
+        _ path: String,
+        method: String = "GET",
+        query: [URLQueryItem]? = nil,
+        body: Encodable? = nil,
+        authorized: Bool = true
+    ) async throws -> (Data, HTTPURLResponse) {
         var url = AppEnv.baseURL
         url.append(path: path)
+
+        if let query {
+            guard var comps = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
+                throw URLError(.badURL)
+            }
+            comps.queryItems = query
+            guard let u = comps.url else { throw URLError(.badURL) }
+            url = u
+        }
+
         var r = URLRequest(url: url)
         r.httpMethod = method
         r.addValue("application/json", forHTTPHeaderField: "Content-Type")
-        if let b = body { r.httpBody = try JSONEncoder().encode(AnyEncodable(b)) }
-        if authorized, let t = auth.accessToken { r.addValue("Bearer \(t)", forHTTPHeaderField: "Authorization") }
+        if let b = body {
+            r.httpBody = try JSONEncoder().encode(AnyEncodable(b))
+        }
+        if authorized, let t = auth.accessToken {
+            r.addValue("Bearer \(t)", forHTTPHeaderField: "Authorization")
+        }
+
         let (data, resp) = try await session.data(for: r)
-        guard let http = resp as? HTTPURLResponse else { throw URLError(.badServerResponse) }
+        guard let http = resp as? HTTPURLResponse else {
+            throw URLError(.badServerResponse)
+        }
+
         if http.statusCode == 401, authorized {
             try await refresh()
-            return try await request(path, method: method, body: body, authorized: true)
+            return try await request(path, method: method, query: query, body: body, authorized: true)
         }
+
         return (data, http)
     }
 
     func login(email: String, password: String) async throws {
-        let (d, http) = try await request("auth/login", method: "POST", body: LoginReq(email: email, password: password), authorized: false)
+        let (d, http) = try await request(
+            "auth/login",
+            method: "POST",
+            body: LoginReq(email: email, password: password),
+            authorized: false
+        )
         guard http.statusCode == 200 else { throw URLError(.userAuthenticationRequired) }
         let obj = try JSONDecoder().decode(TokenPair.self, from: d)
         auth.setTokens(access: obj.accessToken, refresh: obj.refreshToken)
@@ -44,7 +75,12 @@ final class APIClient: ObservableObject {
     }
 
     func register(name: String, email: String, password: String) async throws {
-        let (d, http) = try await request("auth/register", method: "POST", body: RegisterReq(name: name, email: email, password: password), authorized: false)
+        let (d, http) = try await request(
+            "auth/register",
+            method: "POST",
+            body: RegisterReq(name: name, email: email, password: password),
+            authorized: false
+        )
         guard http.statusCode == 201 else { throw URLError(.badServerResponse) }
         let obj = try JSONDecoder().decode(TokenPair.self, from: d)
         auth.setTokens(access: obj.accessToken, refresh: obj.refreshToken)
@@ -53,7 +89,12 @@ final class APIClient: ObservableObject {
 
     func refresh() async throws {
         guard let rt = auth.refreshToken else { throw URLError(.userAuthenticationRequired) }
-        let (d, http) = try await request("auth/refresh", method: "POST", body: RefreshReq(refreshToken: rt), authorized: false)
+        let (d, http) = try await request(
+            "auth/refresh",
+            method: "POST",
+            body: RefreshReq(refreshToken: rt),
+            authorized: false
+        )
         guard http.statusCode == 200 else { throw URLError(.userAuthenticationRequired) }
         let o = try JSONDecoder().decode(AccessOnly.self, from: d)
         auth.setTokens(access: o.accessToken, refresh: rt)
@@ -76,21 +117,67 @@ final class APIClient: ObservableObject {
         guard http.statusCode == 201 else { throw URLError(.badServerResponse) }
     }
 
+    func assessments(
+        forResidentId id: String,
+        before: Date? = nil,
+        limit: Int = 20
+    ) async throws -> [Assessment] {
+        var items: [URLQueryItem] = [
+            URLQueryItem(name: "residentId", value: id),
+            URLQueryItem(name: "limit", value: String(limit))
+        ]
+
+        if let before {
+            let fmt = ISO8601DateFormatter()
+            items.append(URLQueryItem(name: "before", value: fmt.string(from: before)))
+        }
+
+        let (d, http) = try await request("assessments", query: items, authorized: true)
+        guard http.statusCode == 200 else { throw URLError(.badServerResponse) }
+
+        let dec = JSONDecoder()
+        dec.dateDecodingStrategy = .iso8601
+        return try dec.decode([Assessment].self, from: d)
+    }
+    
+    func deleteAssessment(id: String) async throws {
+        let (_, http) = try await request(
+            "assessments/\(id)",
+            method: "DELETE",
+            authorized: true
+        )
+        guard http.statusCode == 204 else { throw URLError(.badServerResponse) }
+    }
+
     func createResident(name: String, pgYear: Int, active: Bool) async throws -> String {
         let payload = CreateResidentReq(name: name, pgYear: pgYear, active: active)
-        let (d, http) = try await request("residents", method: "POST", body: payload, authorized: true)
+        let (d, http) = try await request(
+            "residents",
+            method: "POST",
+            body: payload,
+            authorized: true
+        )
         guard http.statusCode == 201 else { throw URLError(.badServerResponse) }
         return try JSONDecoder().decode(IdResp.self, from: d).id
     }
 
     func updateResident(id: String, name: String? = nil, pgYear: Int? = nil, active: Bool? = nil) async throws {
         let payload = ResidentPatch(name: name, pgYear: pgYear, active: active)
-        let (_, http) = try await request("residents/\(id)", method: "PATCH", body: payload, authorized: true)
+        let (_, http) = try await request(
+            "residents/\(id)",
+            method: "PATCH",
+            body: payload,
+            authorized: true
+        )
         guard http.statusCode == 200 else { throw URLError(.badServerResponse) }
     }
     
     func deleteResident(id: String) async throws {
-        let (_, http) = try await request("residents/\(id)", method: "DELETE", authorized: true)
+        let (_, http) = try await request(
+            "residents/\(id)",
+            method: "DELETE",
+            authorized: true
+        )
         guard http.statusCode == 204 else { throw URLError(.badServerResponse) }
     }
 }

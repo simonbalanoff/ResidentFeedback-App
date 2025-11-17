@@ -27,6 +27,7 @@ struct IconField: View {
     var body: some View {
         HStack(spacing: 10) {
             Image(systemName: systemImage).foregroundStyle(Theme.subtext)
+                .frame(width: 24)
             if isSecure {
                 SecureField(title, text: $text)
             } else {

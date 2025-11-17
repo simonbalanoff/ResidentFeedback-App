@@ -15,35 +15,37 @@ struct AppRoot: View {
 
     var body: some View {
         ZStack {
-            if auth.accessToken == nil || auth.me == nil {
-                LoginView()
-                    .matchedGeometryEffect(id: "root", in: ns)
-                    .transition(.opacity.combined(with: .scale))
-            } else {
+            if auth.isAuthenticated {
                 RootTabView()
                     .matchedGeometryEffect(id: "root", in: ns)
                     .transition(.opacity)
+            } else {
+                LoginView()
+                    .matchedGeometryEffect(id: "root", in: ns)
+                    .transition(.opacity.combined(with: .scale))
             }
         }
         .task {
             guard !didAttemptRestore else { return }
             didAttemptRestore = true
-            if auth.accessToken != nil, auth.me == nil {
-                do {
-                    try await api.loadMe()
-                } catch {
-                    auth.clear()
-                }
+
+            guard auth.isAuthenticated else { return }
+
+            do {
+                try await api.loadMe()
+            } catch {
+                auth.clear()
             }
         }
-        .animation(.spring(response: 0.45, dampingFraction: 0.9, blendDuration: 0.2), value: auth.accessToken != nil && auth.me != nil)
     }
 }
 
 #Preview("Logged Out") {
-    AppRoot()
-        .environmentObject(AuthStore())
-        .environmentObject(APIClient(auth: AuthStore()))
+    let auth = AuthStore()
+    let api = APIClient(auth: auth)
+    return AppRoot()
+        .environmentObject(auth)
+        .environmentObject(api)
         .environmentObject(AssessmentViewModel())
         .environmentObject(AppearanceStore())
 }
@@ -52,9 +54,10 @@ struct AppRoot: View {
     let auth = AuthStore()
     auth.setTokens(access: "token", refresh: "refresh")
     auth.me = Me(id: "1", email: "a@b.com", name: "Dr. Tester", role: "admin")
+    let api = APIClient(auth: auth)
     return AppRoot()
         .environmentObject(auth)
-        .environmentObject(APIClient(auth: auth))
+        .environmentObject(api)
         .environmentObject(AssessmentViewModel())
         .environmentObject(AppearanceStore())
 }
