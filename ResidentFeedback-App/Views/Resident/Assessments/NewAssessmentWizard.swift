@@ -150,7 +150,10 @@ private extension NewAssessmentWizard {
                 Button {
                     dismissKeyboard()
                     withAnimation(.easeInOut) {
-                        if step == 0 { dismiss() } else { step -= 1 }
+                        if step == 0 {
+                            dismiss()
+                            aVM.reset()
+                        } else { step -= 1 }
                     }
                 } label: {
                     Text(step == 0 ? "Close" : "Back")

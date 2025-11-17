@@ -16,6 +16,8 @@ struct AssessmentRow: View {
                 Text(assessment.surgeryType)
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(Theme.text)
+                    .lineLimit(2)
+                    .layoutPriority(10)
 
                 HStack(spacing: 6) {
                     if let complexity = assessment.complexity {
@@ -25,6 +27,7 @@ struct AssessmentRow: View {
                             .padding(.vertical, 3)
                             .background(Theme.card, in: Capsule())
                             .foregroundStyle(Theme.subtext)
+                            .fixedSize()
                     }
                     if let trust = assessment.trustLevel {
                         Text(trustDisplay(trust))
@@ -33,8 +36,11 @@ struct AssessmentRow: View {
                             .padding(.vertical, 3)
                             .background(Theme.accent.opacity(0.12), in: Capsule())
                             .foregroundStyle(Theme.accent)
+                            .fixedSize()
                     }
                 }
+                .lineLimit(1)
+                .layoutPriority(10)
 
                 Text(snippet)
                     .font(.caption)

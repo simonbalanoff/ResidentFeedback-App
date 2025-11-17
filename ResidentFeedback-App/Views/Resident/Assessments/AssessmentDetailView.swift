@@ -51,6 +51,8 @@ struct AssessmentDetailView: View {
                                     .foregroundStyle(Theme.accent)
                             }
                         }
+                        .lineLimit(1)
+                        .layoutPriority(10)
                     }
                 }
 
