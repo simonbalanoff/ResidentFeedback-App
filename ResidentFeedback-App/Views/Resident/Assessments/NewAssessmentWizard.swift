@@ -30,6 +30,19 @@ struct NewAssessmentWizard: View {
         residents.first(where: { $0.id == aVM.draft.residentId })?.name ?? ""
     }
 
+    private var headerTitle: String {
+        if selectedResidentName.isEmpty {
+            return "New Assessment"
+        } else {
+            return "New Assessment for \(selectedResidentName)"
+        }
+    }
+
+    private var displayTotalSteps: Int { 6 }
+    private var displayCurrentStep: Int {
+        min(step + 1, displayTotalSteps)
+    }
+
     let preselectedResidentId: String?
 
     init(preselectedResidentId: String? = nil) {
@@ -59,8 +72,7 @@ struct NewAssessmentWizard: View {
                     bottomBar
                 }
             }
-            .navigationTitle("New Assessment")
-            .navigationBarTitleDisplayMode(.inline)
+            .navigationBarHidden(true)
             .task {
                 do {
                     residents = try await api.residents()
@@ -87,12 +99,43 @@ private extension NewAssessmentWizard {
     }
 
     var progressHeader: some View {
-        ProgressView(value: Double(step), total: Double(stepCount))
-            .tint(Theme.accent)
-            .frame(height: 52)
-            .clipShape(RoundedRectangle(cornerRadius: 4))
+        VStack(spacing: 8) {
+            HStack {
+                Button {
+                    dismissKeyboard()
+                    aVM.reset()
+                    dismiss()
+                } label: {
+                    Text("Cancel")
+                        .font(.body)
+                }
+                .foregroundStyle(Theme.accent)
+
+                Spacer()
+
+                Text("Step \(displayCurrentStep) of \(displayTotalSteps)")
+                    .font(.subheadline)
+                    .foregroundStyle(Theme.subtext)
+            }
             .padding(.horizontal, 16)
             .padding(.top, 12)
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text(headerTitle)
+                    .font(.headline)
+                    .foregroundStyle(Theme.text)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.leading)
+
+                ProgressView(value: Double(step), total: Double(stepCount))
+                    .tint(Theme.accent)
+                    .frame(height: 4)
+                    .clipShape(RoundedRectangle(cornerRadius: 2))
+            }
+            .padding(.horizontal, 16)
+            .padding(.bottom, 8)
+        }
+        .background(Theme.bg)
     }
 
     @ViewBuilder
@@ -150,22 +193,27 @@ private extension NewAssessmentWizard {
                 Button {
                     dismissKeyboard()
                     withAnimation(.easeInOut) {
-                        if step == 0 {
-                            dismiss()
-                            aVM.reset()
-                        } else { step -= 1 }
+                        if step > 0 {
+                            step -= 1
+                        }
                     }
                 } label: {
-                    Text(step == 0 ? "Close" : "Back")
+                    Text("Back")
                         .frame(maxWidth: .infinity, minHeight: 48)
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(Theme.accent)
+                .disabled(step == 0)
+                .opacity(step == 0 ? 0 : 1)
 
                 Button {
                     dismissKeyboard()
                     withAnimation(.easeInOut) {
-                        if step < stepCount { step += 1 } else { submit() }
+                        if step < stepCount {
+                            step += 1
+                        } else {
+                            submit()
+                        }
                     }
                 } label: {
                     Text(step == stepCount ? "Submit" : "Next")
@@ -197,6 +245,7 @@ private extension NewAssessmentWizard {
         }
     }
 }
+
 
 struct SelectResidentStep: View {
     @Binding var selectedId: String

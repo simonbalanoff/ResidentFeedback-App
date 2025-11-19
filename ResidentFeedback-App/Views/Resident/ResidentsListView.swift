@@ -105,6 +105,7 @@ struct ResidentsListView: View {
                     .scrollContentBackground(.hidden)
                     .background(Theme.bg)
                     .tint(Theme.accent)
+                    .padding(.top, 8)
                 }
                 .background(Theme.bg)
                 .navigationTitle("Residents")

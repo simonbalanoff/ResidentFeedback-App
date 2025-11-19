@@ -87,12 +87,23 @@ struct ManageResidentsView: View {
 
                                             Spacer()
                                         }
-                                        .padding(.vertical, 4)
-                                        .listRowBackground(Theme.card)
+                                        .padding(12)
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                        .background(Theme.card)
+                                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                                .stroke(Theme.sep.opacity(0.5), lineWidth: 1)
+                                        )
                                     }
+                                    .listRowBackground(Color.clear)
+                                    .listRowSeparator(.hidden)
+                                    .listRowInsets(.init(top: 6, leading: 16, bottom: 6, trailing: 16))
                                 }
                             }
+                            .listStyle(.plain)
                             .scrollContentBackground(.hidden)
+                            .padding(.top, 8)
                         }
                     }
                 }
@@ -126,8 +137,6 @@ struct ManageResidentsView: View {
 
     var header: some View {
         VStack(spacing: 0) {
-
-            // Top bar
             HStack {
                 Button {
                     dismiss()
